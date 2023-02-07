@@ -2,7 +2,7 @@ const express = require("express");
 const path = require("path");
 var http = require('http');
 const app = express();
-const hbs = require("hbs");
+const ejs = require("ejs");
 require("./db/conn");
 const Register=require("./models/register")
 
@@ -16,9 +16,9 @@ app.use(express.urlencoded({extended:false}));
 
 
 app.use(express.static(static_path));
-app.set("view engine", "hbs");
+app.set("view engine", "ejs");
 app.set("views", templates_path);
-hbs.registerPartials(partials_path);
+// ejs.registerPartials(partials_path);
 
 app.get("/", (req, res) => {
     res.render("index")
@@ -43,13 +43,9 @@ try {
     if (password === cpassword) {
         const registerEmployee = new Register({
             firstname:req.body.firstname,
-            secondName:req.body.secondName,
-            phoneNo:req.body.phoneNo,
             email:req.body.email,
             password:password,
             confirmpassword:cpassword,
-            Gender:req.body.Gender
-            
         })
   
 const registered= await registerEmployee.save();
@@ -73,7 +69,7 @@ app.post("/login", async(req, res) => {
 
         const useremail = await Register.findOne({email:email});
         if (useremail.password === password) {
-            res.status(201).render("index");
+            res.status(201).render("userlogin");
         }
         else{
             res.send("password are not matching")

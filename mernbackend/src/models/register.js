@@ -5,14 +5,6 @@ const employeeSchema = new mongoose.Schema({
         type:String,
         require:true
     },
-    secondName: {
-        type:String,
-        require:true
-    },
-    phoneNo: {
-        type:Number,
-        require:true,
-          },
     email: {
         type:String,
         require:true,
@@ -24,11 +16,6 @@ const employeeSchema = new mongoose.Schema({
         require:true,
     },
     confirmpassword: {
-        type:String,
-        require:true,
-        
-    },
-    Gender: {
         type:String,
         require:true,
         
