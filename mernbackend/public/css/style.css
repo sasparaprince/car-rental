@@ -60,7 +60,7 @@ header {
 }
 
 .navbar {
-    display: flex; 
+    display: flex;
 
 }
 
@@ -468,7 +468,7 @@ header {
     }
 }
 
-@media(max-width:768px) {
+@media(max-width:838px) {
     header {
         padding: 11px 40px;
     }
@@ -495,7 +495,7 @@ header {
 
     header .navbar {
         position: absolute;
-        top: -500px;
+        top: -550px;
         left: 0;
         right: 0;
         display: flex;
@@ -505,7 +505,8 @@ header {
         transition: 0.2s ease;
         text-align: left;
     }
-    .navbar.active{
+
+    .navbar.active {
         top: 100%;
     }
 
@@ -515,13 +516,78 @@ header {
         margin: 1rem;
         display: block;
     }
-    .navbar a:hover{
+
+    .navbar a:hover {
         color: #fff;
         background: var(--main-color);
         border: none;
     }
-    .navbar a::after{
+
+    .navbar a::after {
         display: none;
+    }
+
+    .heading span {
+        font-size: 0.9rem;
+        font-weight: 600;
+    }
+
+    .heading h1 {
+        font-size: 1.3rem;
+    }
+
+    .about-container {
+        grid-template-columns: 1fr;
+        text-align: center;
+    }
+
+    .about-img {
+        padding: 1rem;
+        order: 2;
+    }
+
+
+}
+
+@media(max-width:568px) {
+    .copyright {
+        flex-direction: column;
+    }
+
+    .nesletter .box {
+        width: 284px;
+    }
+
+    .form-container {
+        padding-top: 2rem;
+    }
+}
+
+@media(max-width:350px) {
+    header {
+        padding: 6px 14px;
+    }
+
+    .logo img {
+        width: 30px;
+    }
+
+    section {
+        padding: 50px 14px;
+    }
+
+    .header-btn .sign-in {
+        padding: 7px 10px;
+        font-size: 14px;
+        font-weight: 400;
+    }
+
+    .text h1 {
+        font-size: 2rem;
+    }
+
+    .services-container {
+        grid-template-columns: repeat(auto-fit, minmax(254px, auto));
     }
 
 }
