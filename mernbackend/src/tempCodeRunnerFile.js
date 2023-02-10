@@ -1,2 +1,1 @@
- passport.authenticate('google', { scope: ["profile", 'email'] })
-);
+displayName: profile.displayName
