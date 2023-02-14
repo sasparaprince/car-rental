@@ -11,7 +11,7 @@
     list-style: none;
     text-decoration: none;
 
-    font-family: 'DM sans', sans-serif;
+    font-family: 'Poppins', sans-serif;
 
 }
 
@@ -50,9 +50,15 @@ header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: #eeeff1;
+    background: white;
+
     padding: 15px 100px;
 }
+
+hr {
+    border-style: inset;
+    border-width: 3px;
+  }
 
 .logo img {
     width: 40px;
@@ -66,6 +72,7 @@ header {
 
 .navbar li {
     position: relative;
+
 }
 
 .navbar a {
@@ -120,7 +127,7 @@ header {
     width: 100%;
     min-height: 100vh;
     position: relative;
-    background: url(/img/homeCar.png);
+    background: url(/img/bg4.jpg);
     background-repeat: no repeat;
     background-position: center right;
     background-size: cover;
@@ -134,7 +141,9 @@ header {
     font-size: 3.5rem;
     letter-spacing: 2px;
 }
-
+.text2{
+    margin-left: 30px;
+}
 .text span {
     color: var(--main-color);
 }
@@ -156,7 +165,7 @@ header {
     position: absolute;
     bottom: 4rem;
     left: 100px;
-    background: #fff;
+    background: #ffffff;
     padding: 20px;
     border-radius: 0.5rem;
 }

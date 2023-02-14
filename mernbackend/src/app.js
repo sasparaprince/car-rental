@@ -1,9 +1,10 @@
 const express = require("express");
+require('dotenv').config()
 const path = require("path");
 var http = require('http');
 const app = express();
 const ejs = require("ejs");
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
 require("./db/conn");
 const session = require("express-session");
 const passport = require("passport");
@@ -17,7 +18,6 @@ const port = process.env.PORT || 3000;
 const static_path = path.join(__dirname, "../public");
 const templates_path = path.join(__dirname, "../templates/views");
 const partials_path = path.join(__dirname, "../templates/partials");
-require('dotenv').config()
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -64,7 +64,7 @@ const userSchema = new mongoose.Schema({
     password: String,
     googleId: String,
     secret: String,
-    displayName: String
+    displayname: String
 })
 
 userSchema.plugin(passportLocalMongoose);
@@ -89,19 +89,22 @@ passport.use(new GoogleStrategy({
     clientID: process.env.CLIENT_ID,
     clientSecret: process.env.CLIENT_SECRET,
     callbackURL: "http://localhost:3000/auth/google/secrets",
-    userProfileURL:"https://www.googleapis.com/oauth2/v3/userinfo",
-  },
-  function(accessToken, refreshToken, profile, cb) {
-    console.log(profile);
-    User.findOrCreate({ googleId: profile.id },{displayName: profile.displayName}, function (err, user) {
-      return cb(err, user);});}
-      ));
-//   function(accessToken, refreshToken, profile, cb) {
-//     console.log(profile);
-//     User.findOrCreate({ username: profile.id, googleId: profile.id }, function (err, user) {
-//     return cb(err, user);});}
-// ));
+    userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo"
 
+},
+    //   function(accessToken, refreshToken, profile, cb) {
+        // console.log(profile);
+    //     User.findOrCreate({ googleId: profile.id }, function (err, user) {
+    //       return cb(err, user);
+    //     });
+    //   }
+    function (accessToken, refreshToken, profile, cb) {
+        console.log(profile);
+        User.findOrCreate({ username: profile.id, googleId: profile.id, displayname: profile.displayName }, function (err, user) {
+            return cb(err, user);
+        });
+    }
+));
 app.get("/auth/google",
 passport.authenticate('google', { successRedirect: '/',scope:
   [ 'https://www.googleapis.com/auth/userinfo.email']})
@@ -150,7 +153,7 @@ app.post("/register", async (req, res) => {
 
             const registered = await registerEmployee.save();
 
-            res.status(201).render("userlogin");
+            res.status(201).render("index");
 
         } else {
             res.send("password are not matching ")
