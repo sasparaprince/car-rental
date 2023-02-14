@@ -42,7 +42,7 @@ app.get("/login", (req, res) => {
 
 })
 
-//**************************************************************************************************** */
+//*************************************google authentication*************************************************************** */
 app.use(session({
     secret: "oue little secret",
     resave: false,
@@ -99,7 +99,7 @@ passport.use(new GoogleStrategy({
     //     });
     //   }
     function (accessToken, refreshToken, profile, cb) {
-        console.log(profile);
+
         User.findOrCreate({ username: profile.id, googleId: profile.id, displayName: profile.displayName }, function (err, user) {
             return cb(err, user);
         });
