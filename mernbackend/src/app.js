@@ -64,7 +64,7 @@ const userSchema = new mongoose.Schema({
     password: String,
     googleId: String,
     secret: String,
-    displayname: String
+    displayName: String
 })
 
 userSchema.plugin(passportLocalMongoose);
@@ -100,14 +100,14 @@ passport.use(new GoogleStrategy({
     //   }
     function (accessToken, refreshToken, profile, cb) {
         console.log(profile);
-        User.findOrCreate({ username: profile.id, googleId: profile.id, displayname: profile.displayName }, function (err, user) {
+        User.findOrCreate({ username: profile.id, googleId: profile.id, displayName: profile.displayName }, function (err, user) {
             return cb(err, user);
         });
     }
 ));
 app.get("/auth/google",
 passport.authenticate('google', { successRedirect: '/',scope:
-  [ 'https://www.googleapis.com/auth/userinfo.email']})
+  [ 'https://www.googleapis.com/auth/userinfo.profile']})
 );
 
 app.get("/auth/google/secrets",
@@ -124,7 +124,7 @@ app.get("/userlogin", function (req, res) {
         } else {
             if (foundUser) {
                 console.log(foundUser)
-                res.render("userlogin", { usersWithSecrets: foundUser });
+                res.render("userlogin", { name:req.user.displayName});
             }
         }
     });
