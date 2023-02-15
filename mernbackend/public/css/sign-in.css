@@ -23,14 +23,14 @@ body {
 .form-signin input[type="email"] {
   margin-bottom: 5px;
   margin-top: 5px;
-  border-bottom-right-radius: 0;
-  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 1;
+  border-bottom-left-radius: 1;
 }
 
 .form-signin input[type="password"] {
   margin-bottom: 5px;
-  border-top-left-radius: 0;
-  border-top-right-radius: 0;
+  border-top-left-radius: 1;
+  border-top-right-radius: 1;
 }
 
 
@@ -68,3 +68,19 @@ body {
       /* Use the Roboto font that is loaded in the <head> */
       font-family: 'Roboto', sans-serif;
     }
+
+    .g-img{
+      height: 18px;
+      width: 20px;
+      margin-left: 15px;
+
+    }
+
+    .btn a{
+      font-size: 20px;
+    }
+.try {
+    margin-right: 22px
+}
+ 
+    

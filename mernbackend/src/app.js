@@ -105,6 +105,7 @@ passport.use(new GoogleStrategy({
         });
     }
 ));
+
 app.get("/auth/google",
 passport.authenticate('google', { successRedirect: '/',scope:
   [ 'https://www.googleapis.com/auth/userinfo.profile']})
