@@ -15,9 +15,11 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const Register = require("./models/register");
 const { log } = require("console");
 const port = process.env.PORT || 3000;
+const connectDB = require('./db/conn');
+
 const static_path = path.join(__dirname, "../public");
 const templates_path = path.join(__dirname, "../templates/views");
-const partials_path = path.join(__dirname, "../templates/partials");
+// const partials_path = path.join(__dirname, "../templates/partials");s
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
@@ -40,6 +42,21 @@ app.get("/register", (req, res) => {
 app.get("/login", (req, res) => {
     res.render("login");
 
+})
+app.get("/car", (req, res) => {
+    res.render("car");
+})
+app.get("/admin", (req, res) => {
+    res.render("admin");
+})
+app.get("/addcar", (req, res) => {
+    res.render("admin/addcar");
+})
+app.get("/updatecar", (req, res) => {
+    res.render("admin/updatecar");
+})
+app.get("/showcaradmin", (req, res) => {
+    res.render("admin/showcaradmin");
 })
 
 //*************************************google authentication*************************************************************** */
@@ -154,7 +171,7 @@ app.post("/register", async (req, res) => {
 
             const registered = await registerEmployee.save();
 
-            res.status(201).render("index");
+            res.status(201).render("login");
 
         } else {
             res.send("password are not matching ")
@@ -187,6 +204,75 @@ app.post("/login", async (req, res) => {
 
 
 })
+/*********************************************************************************************** */
+var schema = new mongoose.Schema({
+    name : {
+        type : String
+    },
+    price: {
+        type: Number
+    },
+    fuelType : String,
+
+    description: {
+        type : String
+    },
+    seats: {
+        type: Number
+    }
+})
+
+const Userdb = mongoose.model('userdb', schema);
+
+app.post("/api/users", async (req, res) => {
+    // validate request
+    if(!req.body){
+        res.status(400).send({ message : "Content can not be emtpy!"});
+        return;
+    }
+
+    // new user
+    const user = new Userdb({
+        name : req.body.name,
+        price : req.body.price,
+        seats : req.body.seats,
+        description : req.body.description,
+        fuelType: req.body.fuelType
+        // status : req.body.status
+    })
+
+    // save user in the database
+    user
+        .save(user)
+        .then(data => {
+            // res.send(data)
+            console.log(data);
+            res.redirect('/addcar');
+        })
+        .catch(err =>{
+            res.status(500).send({
+                message : err.message || "Some error occurred while creating a create operation"
+            });
+        });
+
+})
+
+
+exports.homeRoutes = (req, res) => {
+    // Make a get request to /api/users
+    axios.get('http://localhost:3000/api/users')
+        .then(function(response){
+            res.render('index', { users : response.data });
+        })
+        .catch(err =>{
+            res.send(err);
+        })
+
+    
+}
+
+/*********************************************************************************************** */
+
 
 app.listen(port, () => {
     console.log(`server is running at port no: ${port}`);

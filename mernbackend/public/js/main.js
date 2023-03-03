@@ -27,3 +27,5 @@ sr.reveal('.services-container .box',{delay:200, origin:'top'})
 sr.reveal('.about-container .box',{delay:200, origin:'top'})
 sr.reveal('.reviews-container',{delay:200, origin:'top'})
 sr.reveal('.FAQs-container',{delay:200, origin:'top'})
+
+

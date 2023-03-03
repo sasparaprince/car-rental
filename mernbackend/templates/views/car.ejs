@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Car Rental Booking Page</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css" integrity="sha512-SzlrxWUlpfuzQ+pcUCosxcglQRNAq/DZjVsC0lE40xsADsfeQoEypE+enwcOiGjk/bSuGGKHEyjSoQ1zVisanQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="css/style.css">
+    <!-- <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"> -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+</head>
+
+
+<body>
+
+    <!-- <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="#">Car Rental</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="#">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">Cars</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="#">About</a>
+                </li>
+            </ul>
+        </div>
+    </nav> -->
+
+    <div class="container">
+
+        <!-- <div class="row"> -->
+
+        <!-- <div class="col-md-6"> -->
+
+        <div class="row">
+            <div class="col-sm">
+                <div id="carouselExampleIndicators" class="carousel slide" data-ride="carousel">
+                    <ol class="carousel-indicators">
+                      <li data-target="#carouselExampleIndicators" data-slide-to="0" class="active"></li>
+                      <li data-target="#carouselExampleIndicators" data-slide-to="1"></li>
+                      <li data-target="#carouselExampleIndicators" data-slide-to="2"></li>
+                    </ol>
+                    <div class="carousel-inner">
+                      <div class="carousel-item active">
+                        <img class="img-fluid d-block w-100" src="https://cdni.autocarindia.com/utils/imageresizer.ashx?n=https://cms.haymarketindia.net/model/uploads/modelimages/Mahindra-Scorpio-N-300620221053.jpg&w=872&h=578&q=75&c=1" alt="First slide">
+                      </div>
+                      <div class="img-fluid carousel-item">
+                        <img class="img-fluid d-block w-100" src="https://imageio.forbes.com/specials-images/imageserve/5d35eacaf1176b0008974b54/0x0.jpg?format=jpg&crop=4560,2565,x790,y784,safe&width=1200" alt="Second slide">
+                      </div>
+                      <div class="img-fluid carousel-item">
+                        <img class="img-fluid d-block w-100" src="https://stimg.cardekho.com/images/carexteriorimages/930x620/BMW/X1/9128/1675058201542/front-left-side-47.jpg" alt="Third slide">
+                      </div>
+                    </div>
+                    <a class="carousel-control-prev" href="#carouselExampleIndicators" role="button" data-slide="prev">
+                      <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                      <span class="sr-only">Previous</span>
+                    </a>
+                    <a class="carousel-control-next" href="#carouselExampleIndicators" role="button" data-slide="next">
+                      <span class="carousel-control-next-icon text-dark" aria-hidden="true"></span>
+                      <span class="sr-only">Next</span>
+                    </a>
+                  </div>
+
+            </div>
+            <div class="col-sm">
+                <h4 class="mt-4">Car Name</h4>
+                <h4 class="mb-3">Price: $100 per day</h4>
+
+                <p>Car Description Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
+                    incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation
+                    ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+                <ul class="list-group mb-4">
+                    <li class="list-group-item">Features</li>
+                    <li class="list-group-item"><i class="fa-regular fa-user"></i> :  5 sets</li>
+                    <li class="list-group-item"><i class="fa-solid fa-gas-pump"></i> : patrol</li>
+                    <li class="list-group-item"><i class="fa-solid fa-gauge"></i> : Unlimited mileage </li>
+                </ul>
+
+
+            </div>
+        </div>
+        <!-- </div> -->
+
+        <!-- <div class="col-md-6">
+              
+            </div> -->
+        <form class="booking-form">
+            <div class="form-group">
+                <label for="pickup-location">Pickup Location</label>
+                <input type="text" class="form-control" id="pickup-location">
+            </div>
+            <div class="form-group">
+                <label for="dropoff-location">Dropoff Location</label>
+                <input type="text" class="form-control" id="dropoff-location">
+            </div>
+            <div class="form-group">
+                <label for="pickup-date">Pickup Date</label>
+                <input type="date" class="form-control" id="pickup-date">
+            </div>
+            <div class="form-group">
+                <label for="dropoff-date">Dropoff Date</label>
+                <input type="date" class="form-control" id="dropoff-date">
+            </div>
+            <button type="submit" class="btn btn-primary">Book Now</button>
+
+
+        </form>
+    </div>
+
+    <script src="https://unpkg.com/scrollreveal"></script>
+    <script src="js/carpage.js">
+        
+    </script>
+    
+    <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.12.9/dist/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.0.0/dist/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+</body>
+
+</html>

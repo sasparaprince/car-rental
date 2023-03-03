@@ -507,7 +507,7 @@ font-size: 17px;
 
     header .navbar {
         position: absolute;
-        top: -550px;
+    top: -550px;
         left: 0;
         right: 0;
         display: flex;
