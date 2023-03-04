@@ -88,18 +88,19 @@
             <h1>Explore Out TopDeals <br> From Top Rated Dealers</h1>
         </div>
         <div class="services-container">
-
+            <% for(var i = 0; i < users.length; i++) { %>
             <div class="box">
                 <div class="box-img">
                     <img src="img/car1.jpg" alt="">
                 </div>
                 <p>2017</p>
-                <h3>2018 honda civic</h3>
-                <h2>₹5000000 | ₹32000 <span>/month</span> </h2>
-                <a href="/car" class="btn">rent now</a>
+                <h3><%= users[i].name %></h3>
+                <h2><%= users[i].price %> ₹<span>/hour</span> </h2>
+                <a href="/car/<%=users._id%>" class="btn">rent now</a>
             </div>
+            <% } %>
 
-            <div class="box">
+            <!-- <div class="box">
                 <div class="box-img">
                     <img src="img/car2.jpg" alt="">
                 </div>
@@ -147,7 +148,7 @@
                 <h3>2018 honda civic</h3>
                 <h2>₹5000000 | ₹32000 <span>/month</span> </h2>
                 <a href="#" class="btn">rent now</a>
-            </div>
+            </div> -->
         </div>
     </section>
 

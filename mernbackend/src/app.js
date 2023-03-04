@@ -5,17 +5,20 @@ var http = require('http');
 const app = express();
 const ejs = require("ejs");
 const mongoose = require("mongoose");
-require("./db/conn");
+require("./server/db/conn");
 const session = require("express-session");
 const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
 const findOrCreate = require("mongoose-findorcreate");
 const { ppid } = require('process');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
-const Register = require("./models/register");
+const Register = require("./server/models/register");
 const { log } = require("console");
 const port = process.env.PORT || 3000;
-const connectDB = require('./db/conn');
+const connectDB = require('./server/db/conn');
+var Userdb = require('./server/models/model');
+
+
 
 const static_path = path.join(__dirname, "../public");
 const templates_path = path.join(__dirname, "../templates/views");
@@ -30,8 +33,21 @@ app.set("view engine", "ejs");
 app.set("views", templates_path);
 // ejs.registerPartials(partials_path);
 
+
+// mongodb connection
+// connectDB();
+
+app.use('/', require('./server/routes/router'))
+
 app.get("/", (req, res) => {
     res.render("index")
+
+  Userdb.find({}, function(err, user){
+    res.render("home", {
+      startingContent: homeStartingContent,
+      user: user
+      });
+  });
 });
 
 app.get("/register", (req, res) => {
@@ -50,14 +66,14 @@ app.get("/admin", (req, res) => {
     res.render("admin");
 })
 app.get("/addcar", (req, res) => {
-    res.render("admin/addcar");
+    res.render("add_car");
 })
 app.get("/updatecar", (req, res) => {
-    res.render("admin/updatecar");
+    res.render("update_car");
 })
-app.get("/showcaradmin", (req, res) => {
-    res.render("admin/showcaradmin");
-})
+// app.get("/showcaradmin", (req, res) => {
+//     res.render("admin/showcaradmin");
+// })
 
 //*************************************google authentication*************************************************************** */
 app.use(session({
@@ -204,75 +220,48 @@ app.post("/login", async (req, res) => {
 
 
 })
-/*********************************************************************************************** */
-var schema = new mongoose.Schema({
-    name : {
-        type : String
-    },
-    price: {
-        type: Number
-    },
-    fuelType : String,
 
-    description: {
-        type : String
-    },
-    seats: {
-        type: Number
-    }
-})
+// app.get("/car/:postId", function(req, res){
 
-const Userdb = mongoose.model('userdb', schema);
-
-app.post("/api/users", async (req, res) => {
-    // validate request
-    if(!req.body){
-        res.status(400).send({ message : "Content can not be emtpy!"});
-        return;
-    }
-
-    // new user
-    const user = new Userdb({
-        name : req.body.name,
-        price : req.body.price,
-        seats : req.body.seats,
-        description : req.body.description,
-        fuelType: req.body.fuelType
-        // status : req.body.status
-    })
-
-    // save user in the database
-    user
-        .save(user)
-        .then(data => {
-            // res.send(data)
-            console.log(data);
-            res.redirect('/addcar');
-        })
-        .catch(err =>{
-            res.status(500).send({
-                message : err.message || "Some error occurred while creating a create operation"
-            });
-        });
-
-})
-
-
-exports.homeRoutes = (req, res) => {
-    // Make a get request to /api/users
-    axios.get('http://localhost:3000/api/users')
-        .then(function(response){
-            res.render('index', { users : response.data });
-        })
-        .catch(err =>{
-            res.send(err);
-        })
-
+//     const requestedPostId = req.params.postId;
     
-}
+//     Userdb.findOne({_id: requestedPostId}, function(err, user){
+//         if (user) {
+//             res.render("car", {
+//                 //   title: post.title,
+//                 //   content: post.content
+//                 name : user.name,
+//                 price : user.price,
+//                 seats : user.seats,
+//                 description : user.description,
+//                 fuelType: user.fuelType
+//                 });
 
-/*********************************************************************************************** */
+            
+//         }else{
+//             console.log(err);
+//         }
+      
+//       });
+    
+//     });
 
+
+
+    app.get('/car/:_id', function(req,res){
+
+        var query = { 'question' : req.params.id };
+        console.log(query);
+        console.log('query');
+   
+       db.collection('english', function(err, collection) {
+   
+           collection.findOne(query, function(err, item) {
+               console.log(err);
+               res.send(item);
+           });
+       });
+   });
 
 app.listen(port, () => {
     console.log(`server is running at port no: ${port}`);

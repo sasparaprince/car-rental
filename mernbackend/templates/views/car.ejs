@@ -74,16 +74,15 @@
 
             </div>
             <div class="col-sm">
-                <h4 class="mt-4">Car Name</h4>
-                <h4 class="mb-3">Price: $100 per day</h4>
 
-                <p>Car Description Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor
-                    incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation
-                    ullamco laboris nisi ut aliquip ex ea commodo consequat.</p>
+                <h4 class="mt-4"><%= name %></h4>
+                <h4 class="mb-3">Price: <%= price %> per day</h4>
+
+                <p><%= user.discription %></p>
                 <ul class="list-group mb-4">
                     <li class="list-group-item">Features</li>
-                    <li class="list-group-item"><i class="fa-regular fa-user"></i> :  5 sets</li>
-                    <li class="list-group-item"><i class="fa-solid fa-gas-pump"></i> : patrol</li>
+                    <li class="list-group-item"><i class="fa-regular fa-user"></i> :  <%= seats %> sets</li>
+                    <li class="list-group-item"><i class="fa-solid fa-gas-pump"></i> : <%= fuelType %></li>
                     <li class="list-group-item"><i class="fa-solid fa-gauge"></i> : Unlimited mileage </li>
                 </ul>
 
