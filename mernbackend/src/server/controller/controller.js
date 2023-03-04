@@ -107,3 +107,26 @@ exports.delete = (req, res)=>{
             });
         });
 }
+
+
+exports.findCarById = (req,res) => {
+    const requestedPostId = req.params.postId;
+    
+    Userdb.findOne({_id: requestedPostId}, function(err, user){
+        if (user) {
+            console.log(user);
+            res.render("car", {
+                //   title: post.title,
+                //   content: post.content
+                name : user.name,
+                price : user.price,
+                seats : user.seats,
+                description : user.description,
+                fuelType: user.fuelType
+                });
+        }else{
+            console.log(err);
+        }   
+      });   
+
+}

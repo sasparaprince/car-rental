@@ -86,65 +86,17 @@
         </div>
         <div class="services-container">
 
-            <div class="box">
-                <div class="box-img">
-                    <img src="img/car1.jpg" alt="">
+            <% for(var i = 0; i < users.length; i++) { %>
+                <div class="box">
+                    <div class="box-img">
+                        <img src="img/car1.jpg" alt="">
+                    </div>
+                    <p>2017</p>
+                    <h3><%= users[i].name %></h3>
+                    <h2><%= users[i].price %> ₹<span>/hour</span> </h2>
+                    <a href="/car/<%=users[i]._id%>" class="btn">rent now</a>
                 </div>
-                <p>2017</p>
-                <h3>2018 honda civic</h3>
-                <h2>₹5000000 | ₹32000 <span>/month</span> </h2>
-                <a href="#" class="btn">rent now</a>
-            </div>
-
-            <div class="box">
-                <div class="box-img">
-                    <img src="img/car2.jpg" alt="">
-                </div>
-                <p>2017</p>
-                <h3>2018 honda civic</h3>
-                <h2>₹5000000 | ₹32000 <span>/month</span> </h2>
-                <a href="#" class="btn">rent now</a>
-            </div>
-
-            <div class="box">
-                <div class="box-img">
-                    <img src="img/car3.jpg" alt="">
-                </div>
-                <p>2017</p>
-                <h3>2018 honda civic</h3>
-                <h2>₹5000000 | ₹32000 <span>/month</span> </h2>
-                <a href="#" class="btn">rent now</a>
-            </div>
-
-            <div class="box">
-                <div class="box-img">
-                    <img src="img/car4.jpg" alt="">
-                </div>
-                <p>2017</p>
-                <h3>2018 honda civic</h3>
-                <h2>₹5000000 | ₹32000 <span>/month</span> </h2>
-                <a href="#" class="btn">rent now</a>
-            </div>
-
-            <div class="box">
-                <div class="box-img">
-                    <img src="img/car5.jpg" alt="">
-                </div>
-                <p>2017</p>
-                <h3>2018 honda civic</h3>
-                <h2>₹5000000 | ₹32000 <span>/month</span> </h2>
-                <a href="#" class="btn">rent now</a>
-            </div>
-
-            <div class="box">
-                <div class="box-img">
-                    <img src="img/car6.jpg" alt="">
-                </div>
-                <p>2017</p>
-                <h3>2018 honda civic</h3>
-                <h2>₹5000000 | ₹32000 <span>/month</span> </h2>
-                <a href="#" class="btn">rent now</a>
-            </div>
+                <% } %>
         </div>
     </section>
 

@@ -14,6 +14,7 @@ const { ppid } = require('process');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const Register = require("./server/models/register");
 const { log } = require("console");
+const axios = require('axios');
 const port = process.env.PORT || 3000;
 const connectDB = require('./server/db/conn');
 var Userdb = require('./server/models/model');
@@ -42,12 +43,12 @@ app.use('/', require('./server/routes/router'))
 app.get("/", (req, res) => {
     res.render("index")
 
-  Userdb.find({}, function(err, user){
-    res.render("home", {
-      startingContent: homeStartingContent,
-      user: user
-      });
-  });
+    Userdb.find({}, function (err, user) {
+        res.render("home", {
+            startingContent: homeStartingContent,
+            user: user
+        });
+    });
 });
 
 app.get("/register", (req, res) => {
@@ -126,7 +127,7 @@ passport.use(new GoogleStrategy({
 
 },
     //   function(accessToken, refreshToken, profile, cb) {
-        // console.log(profile);
+    // console.log(profile);
     //     User.findOrCreate({ googleId: profile.id }, function (err, user) {
     //       return cb(err, user);
     //     });
@@ -140,8 +141,10 @@ passport.use(new GoogleStrategy({
 ));
 
 app.get("/auth/google",
-passport.authenticate('google', { successRedirect: '/',scope:
-  [ 'https://www.googleapis.com/auth/userinfo.profile']})
+    passport.authenticate('google', {
+        successRedirect: '/', scope:
+            ['https://www.googleapis.com/auth/userinfo.profile']
+    })
 );
 
 app.get("/auth/google/secrets",
@@ -158,7 +161,14 @@ app.get("/userlogin", function (req, res) {
         } else {
             if (foundUser) {
                 console.log(foundUser)
-                res.render("userlogin", { name:req.user.displayName});
+
+                axios.get('http://localhost:3000/api/users')
+                    .then(function (response) {
+                        res.render('userlogin', { users: response.data, name: req.user.displayName });
+                    })
+                    .catch(err => {
+                        res.send(err);
+                    })
             }
         }
     });
@@ -221,47 +231,44 @@ app.post("/login", async (req, res) => {
 
 })
 
-// app.get("/car/:postId", function(req, res){
+app.get("/car/:postId", function (req, res) {
 
-//     const requestedPostId = req.params.postId;
-    
-//     Userdb.findOne({_id: requestedPostId}, function(err, user){
-//         if (user) {
-//             res.render("car", {
-//                 //   title: post.title,
-//                 //   content: post.content
-//                 name : user.name,
-//                 price : user.price,
-//                 seats : user.seats,
-//                 description : user.description,
-//                 fuelType: user.fuelType
-//                 });
+    const requestedPostId = req.params.postId;
 
-            
-//         }else{
-//             console.log(err);
-//         }
-      
-//       });
-    
-//     });
+    Userdb.findOne({ _id: requestedPostId }, function (err, user) {
+        if (user) {
+            console.log(user);
+            res.render("car", {
+                //   title: post.title,
+                //   content: post.content
+                name: user.name,
+                price: user.price,
+                seats: user.seats,
+                description: user.description,
+                fuelType: user.fuelType
+            });
+        } else {
+            console.log(err);
+        }
+    });
+});
 
 
 
-    app.get('/car/:_id', function(req,res){
+//     app.get('/car/:_id', function(req,res){
 
-        var query = { 'question' : req.params.id };
-        console.log(query);
-        console.log('query');
-   
-       db.collection('english', function(err, collection) {
-   
-           collection.findOne(query, function(err, item) {
-               console.log(err);
-               res.send(item);
-           });
-       });
-   });
+//         var query = { 'question' : req.params.id };
+//         console.log(query);
+//         console.log('query');
+
+//        db.collection('english', function(err, collection) {
+
+//            collection.findOne(query, function(err, item) {
+//                console.log(err);
+//                res.send(item);
+//            });
+//        });
+//    });
 
 app.listen(port, () => {
     console.log(`server is running at port no: ${port}`);
