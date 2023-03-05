@@ -1,15 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
+
 </head>
+<style>
+    .btnadmin {
+   font-size: 23px;
+
+    }
+    .div-btn{
+        border: 2px solid black;
+        width: 100px;
+        margin: 23px;
+        text-align: center;
+        background-color: white;
+    }
+    .div-btn:hover{
+     background-color: rgb(255, 173, 173);
+     color: white;
+    }
+</style>
+
 <body>
-    <a href="/addcar">add car</a><br>
-    <a href="/updatecar">update car</a><br>
-    <a href="/showcaradmin">show car</a><br>
-    
+    <div class="div-btn">
+        <a href="/addcar" class="btnadmin">add car</a>
+
+    </div>
+
+    <div class="div-btn"> <a href="/showcaradmin" class="btnadmin">show car</a></div>
+
+
+
 </body>
+
 </html>

@@ -24,7 +24,7 @@ exports.create = (req,res)=>{
         .then(data => {
             //res.send(data)
             console.log(data);
-            res.redirect('/');
+            res.redirect('/showcaradmin');
         })
         .catch(err =>{
             res.status(500).send({
@@ -79,7 +79,8 @@ exports.update = (req, res)=>{
             if(!data){
                 res.status(404).send({ message : `Cannot Update user with ${id}. Maybe user not found!`})
             }else{
-                res.send(data)
+                // res.send(data)
+                res.redirect('/showcaradmin')
             }
         })
         .catch(err =>{
@@ -114,7 +115,7 @@ exports.findCarById = (req,res) => {
     
     Userdb.findOne({_id: requestedPostId}, function(err, user){
         if (user) {
-            console.log(user);
+            // console.log(user);
             res.render("car", {
                 //   title: post.title,
                 //   content: post.content
@@ -128,5 +129,5 @@ exports.findCarById = (req,res) => {
             console.log(err);
         }   
       });   
-
 }
+

@@ -14,9 +14,12 @@ var schema = new mongoose.Schema({
             },
             seats: {
                 type: Number
+            },
+            image: {
+                type: String
             }
         })
 
-const Userdb = mongoose.model('userdb', schema);
+const Userdb = mongoose.model('carDB', schema);
 
 module.exports = Userdb;

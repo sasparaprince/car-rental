@@ -5,10 +5,69 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <link rel="stylesheet" href="css/addcar.css">
-</head>
+    <!-- <link rel="stylesheet" href="css/addcar.css"> -->
+    <!-- <link rel="stylesheet"  href="css/addcar.css"> -->
+    <link href="/css/addcar.css" rel="stylesheet" type="text/css">
+
+
+</head>       
 <body>
      <!-- form handling -->
-     <%- include('include/_form') %>
+     <form action="/api/users/<%= id%>" method="post" id="add_user">
+        <div class="new_user">
+            <div class="form-group">
+                <label for="name" class="text-light">Car Name</label>
+                <input type="hidden" name="id" value=''>
+                <input type="text" name="name" value='<%= name   %>' placeholder="car name">
+            </div>
+            <div class="form-group">
+                <label for="name" class="text-light">Price</label>
+                <input type="number" name="price" value="<%= price   %>" placeholder="Price">
+            </div>
+            <div class="form-group">
+                <label for="name" class="text-light">Description</label>
+                <input type="text" name="description" value="<%= description%>" placeholder="car description">
+            </div>
+    
+            <div class="form-group">
+                <label for="name" class="text-light">Seats</label>
+                <input type="number" name="seats" value="<%= seats   %>" placeholder="seats">
+            </div>
+            
+          
+            <div class="form-group">
+                <label for="gender" class="text-light">Fuel Type</label>
+                <div class="radio inline">
+                    <input type="radio" id="radio-2" name="fuelType" value="petrol"<%if(fuelType == "petrol"){%>
+                        <%="checked"%>
+                    <%}%> >
+                    <label for="radio-2" class="radio-label">Petrol</label>
+                </div>
+                <div class="radio inline">
+                    <input type="radio" id="radio-3" name="fuelType" value="diesel" <%if(fuelType == "diesel"){%>
+                        <%="checked"%>
+                    <%}%>>
+                    <label for="radio-3" class="radio-label">Diesel</label>
+                </div>
+            </div>
+    
+            <!-- <div class="form-group">
+                <label for="gender" class="text-light">Status</label>
+                <div class="radio inline">
+                    <input type="radio" id="radio-4" name="status" value="Active" >
+                    <label for="radio-4" class="radio-label">Active</label>
+                </div>
+                <div class="radio inline">
+                    <input type="radio" id="radio-5" name="status" value="Inactive" >
+                    <label for="radio-5" class="radio-label">Inactive</label>
+                </div>
+            </div> -->
+    
+            <div class="form-group">
+                <button type="submit" class="btn text-dark update">Add</button>
+            </div>
+    
+        </div>
+    </form>
 </body>
 </html>

@@ -19,15 +19,12 @@ const port = process.env.PORT || 3000;
 const connectDB = require('./server/db/conn');
 var Userdb = require('./server/models/model');
 
-
-
 const static_path = path.join(__dirname, "../public");
 const templates_path = path.join(__dirname, "../templates/views");
 // const partials_path = path.join(__dirname, "../templates/partials");s
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-
 
 app.use(express.static(static_path));
 app.set("view engine", "ejs");
@@ -39,7 +36,6 @@ app.set("views", templates_path);
 // connectDB();
 
 app.use('/', require('./server/routes/router'))
-
 app.get("/", (req, res) => {
     res.render("index")
 
@@ -50,6 +46,19 @@ app.get("/", (req, res) => {
         });
     });
 });
+
+app.get("/showcaradmin", (req, res) => {
+    // res.render("index")
+
+    Userdb.find({}, function (err, user) {
+        res.render("showcar", {
+        
+            car: user
+        });
+    });
+});
+
+
 
 app.get("/register", (req, res) => {
     res.render("register");
@@ -69,12 +78,32 @@ app.get("/admin", (req, res) => {
 app.get("/addcar", (req, res) => {
     res.render("add_car");
 })
-app.get("/updatecar", (req, res) => {
-    res.render("update_car");
+app.get("/update-car/:id", (req, res) => {
+
+const requestedPostId = req.params.id;
+    
+    Userdb.findOne({_id: requestedPostId}, function(err, user){
+        if (user) {
+            console.log(user);
+            res.render("update_car", {
+                //   title: post.title,
+                //   content: post.content
+                name : user.name,
+                price : user.price,
+                seats : user.seats,
+                description : user.description,
+                fuelType: user.fuelType,
+                id: user?._id
+                });
+        }else{
+            console.log(err);
+        }   
+      });   
+    // res.render("update_car");
 })
-// app.get("/showcaradmin", (req, res) => {
-//     res.render("admin/showcaradmin");
-// })
+app.get("/showcaradmin", (req, res) => {
+    res.render("showcar");
+})
 
 //*************************************google authentication*************************************************************** */
 app.use(session({
