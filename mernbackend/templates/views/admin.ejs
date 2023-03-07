@@ -9,32 +9,62 @@
 
 </head>
 <style>
-    .btnadmin {
-   font-size: 23px;
+    @import url('https://fonts.googleapis.com/css2?family=PT+Sans+Caption&family=Tilt+Neon&family=Varela+Round&display=swap');
 
+    .btnadmin {
+        font-size: 23px;
+        text-decoration: none;
+        color: black;
+        font-family: 'Poppins', sans-serif;
     }
-    .div-btn{
+
+    .btnadmin:hover {
+        color: #000000;
+        font-weight: bold;
+    }
+
+    .div-btn {
         border: 2px solid black;
-        width: 100px;
+        width: 115px;
         margin: 23px;
         text-align: center;
-        background-color: white;
+        background-color: #EEF1FF;
+        position: relative;
+        left: 615px;
+        border-radius: 7px;
     }
-    .div-btn:hover{
-     background-color: rgb(255, 173, 173);
-     color: white;
+
+
+    .div-btn:hover {
+        background-color: #b5e5ff;
+    }
+
+    h1 {
+        background-color: rgb(222, 240, 255);
+        margin: auto;
+        width: 50%;
+        border: 3px solid #000;
+        padding: 10px;
+        text-align: center;
+        font-family: 'PT Sans Caption', sans-serif;
+        font-family: 'Tilt Neon', cursive;
+        font-family: 'Varela Round', sans-serif;
     }
 </style>
 
 <body>
-    <div class="div-btn">
-        <a href="/addcar" class="btnadmin">add car</a>
 
+    <div class="admin">
+        <h1>Admin Dashboard </h1>
     </div>
 
-    <div class="div-btn"> <a href="/showcaradmin" class="btnadmin">show car</a></div>
+    <div class="div-btn">
+        <a href="/addcar" class="btnadmin">add car</a>
+    </div>
 
-
+    <div class="div-btn">
+        <a href="/showcaradmin" class="btnadmin">show car</a>
+    </div>
 
 </body>
 
