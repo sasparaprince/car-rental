@@ -18,6 +18,9 @@ const axios = require('axios');
 const port = process.env.PORT || 3000;
 const connectDB = require('./server/db/conn');
 var Userdb = require('./server/models/model');
+const multer  = require('multer')
+
+
 
 const static_path = path.join(__dirname, "../public");
 const templates_path = path.join(__dirname, "../templates/views");
@@ -93,6 +96,7 @@ const requestedPostId = req.params.id;
                 seats : user.seats,
                 description : user.description,
                 fuelType: user.fuelType,
+                image: user.image,
                 id: user?._id
                 });
         }else{
@@ -298,6 +302,23 @@ app.get("/car/:postId", function (req, res) {
 //            });
 //        });
 //    });
+
+
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+
+const storage = multer.diskStorage({
+    destination: function(req, file, cb) {
+      cb(null, 'public/uploads/');
+    },
+    filename: function(req, file, cb) {
+      cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
+    }
+  });
+  
+  const upload = multer({ storage: storage });
+
+module.exports = upload
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 app.listen(port, () => {
     console.log(`server is running at port no: ${port}`);

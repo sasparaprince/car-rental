@@ -1,24 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
     <link rel="stylesheet" type="text/css" href="css/addcar.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css" integrity="sha512-SzlrxWUlpfuzQ+pcUCosxcglQRNAq/DZjVsC0lE40xsADsfeQoEypE+enwcOiGjk/bSuGGKHEyjSoQ1zVisanQ==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css"
+        integrity="sha512-SzlrxWUlpfuzQ+pcUCosxcglQRNAq/DZjVsC0lE40xsADsfeQoEypE+enwcOiGjk/bSuGGKHEyjSoQ1zVisanQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
 </head>
+
 <body>
     <main id="site-main">
         <div class="container">
             <div class="box-nav d-flex justify-between">
                 <a href="/add-user" class="border-shadow">
-                    <span class="text-gradient">add car <i class="fas fa-user"></i></span>
+                    <span class="text-gradient">add car <i class="fas fa-user"></i>
+                    </span>
                 </a>
             </div>
+            <!-- index.ejs -->
+            <!-- <button onclick="exportToExcel2(this)">Export to Excel</button> -->
+            <!-- <a id="checkAllTopicCheckBoxes" href="#">Export to Excel</a> -->
+
 
             <!-- form handling -->
             <form action="/" method="POST">
+
                 <table class="table">
                     <thead class="thead-dark">
                         <tr>
@@ -31,24 +41,34 @@
                         </tr>
                     </thead>
                     <tbody>
-                        <% for(var i = 0; i < car.length; i++) { %>
+                        <% for(var i=0; i < car.length; i++) { %>
                             <tr>
-                            <td><%= i + 1 %></td>
-                            <td><%= car[i].name %></td>
-                            <td><%= car[i].price %></td>
-                            <td><%= car[i].description.substring(0, 50)%></td>
-                            <td><%= car[i].fuelType %></td>
+                                <td>
+                                    <%= i + 1 %>
+                                </td>
+                                <td>
+                                    <%= car[i].name %>
+                                </td>
+                                <td>
+                                    <%= car[i].price %>
+                                </td>
+                                <td>
+                                    <%= car[i].description.substring(0,15)%>
+                                </td>
+                                <td>
+                                    <%= car[i].fuelType %>
+                                </td>
 
-                            <td>
-                                <a href="/update-car/<%= car[i]._id%>" class="btn border-shadow update">
-                                    <span class="text-gradient"><i class="fas fa-pencil-alt"></i></span>
-                                </a>
-                                <a class="btn border-shadow delete" data-id=<%= car[i]._id%> >
-                                    <span class="text-gradient"><i class="fas fa-times"></i></span>
-                                </a>
-                            </td>
-                        </tr>
-                        <% } %>
+                                <td>
+                                    <a href="/update-car/<%= car[i]._id%>" class="btn border-shadow update">
+                                        <span class="text-gradient"><i class="fas fa-pencil-alt"></i></span>
+                                    </a>
+                                    <a class="btn border-shadow delete" data-id=<%=car[i]._id%> >
+                                        <span class="text-gradient"><i class="fas fa-times"></i></span>
+                                    </a>
+                                </td>
+                            </tr>
+                            <% } %>
                     </tbody>
                 </table>
             </form>
@@ -56,27 +76,54 @@
     </main>
 
 </body>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"
+    integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg=="
+    crossorigin="anonymous"></script>
 
 <script>
-    if(window.location.pathname == "/showcaradmin"){
-    $ondelete = $(".table tbody td a.delete");
-    $ondelete.click(function(){
-        var id = $(this).attr("data-id")
+    if (window.location.pathname == "/showcaradmin") {
+        $ondelete = $(".table tbody td a.delete");
+        $ondelete.click(function () {
+            var id = $(this).attr("data-id")
 
-        var request = {
-            "url" : `http://localhost:3000/api/users/${id}`,
-            "method" : "DELETE"
-        }
+            var request = {
+                "url": `http://localhost:3000/api/users/${id}`,
+                "method": "DELETE"
+            }
 
-        if(confirm("Do you really want to delete this record?")){
-            $.ajax(request).done(function(response){
-                alert("Data Deleted Successfully!");
-                location.reload();
-            })
-        }
+            if (confirm("Do you really want to delete this record?")) {
+                $.ajax(request).done(function (response) {
+                    alert("Data Deleted Successfully!");
+                    location.reload();
+                })
+            }
 
-    })
-}
+        })
+    }
 </script>
+
+<script>
+    
+
+
+document.getElementById ("checkAllTopicCheckBoxes").addEventListener ("click", exportToExcel2, true);
+import { MongoClient } from 'mongodb';
+    function exportToExcel2() {
+        console.log('hello');
+        MongoClient.connect('mongodb://127.0.0.1:27017/Car-Rental', function (err, db) {
+            if (err) throw err;
+            var collection = db.collection('cardbs');
+            collection.find().toArray(function (err, data) {
+                if (err) throw err;
+                var workbook = XLSX.utils.book_new();
+                var sheet = XLSX.utils.json_to_sheet(data);
+                XLSX.utils.book_append_sheet(workbook, sheet, 'Sheet1');
+                XLSX.writeFile(workbook, 'data.xlsx');
+                db.close();
+            });
+        });
+    }
+</script>
+<!-- <script src="js/export.js"></script> -->
+
 </html>
