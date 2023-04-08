@@ -77,24 +77,14 @@ export class AggregationCursor<TSchema = any> extends AbstractCursor<TSchema> {
   }
 
   /** Execute the explain for the cursor */
-  explain(): Promise<Document>;
-  explain(callback: Callback): void;
-  explain(verbosity: ExplainVerbosityLike): Promise<Document>;
-  explain(
-    verbosity?: ExplainVerbosityLike | Callback,
-    callback?: Callback<Document>
-  ): Promise<Document> | void {
-    if (typeof verbosity === 'function') (callback = verbosity), (verbosity = true);
-    if (verbosity == null) verbosity = true;
-
+  async explain(verbosity?: ExplainVerbosityLike): Promise<Document> {
     return executeOperation(
       this.client,
       new AggregateOperation(this.namespace, this[kPipeline], {
         ...this[kOptions], // NOTE: order matters here, we may need to refine this
         ...this.cursorOptions,
-        explain: verbosity
-      }),
-      callback
+        explain: verbosity ?? true
+      })
     );
   }
 
@@ -209,8 +199,7 @@ export class AggregationCursor<TSchema = any> extends AbstractCursor<TSchema> {
     return this;
   }
 
-  // deprecated methods
-  /** @deprecated Add a geoNear stage to the aggregation pipeline */
+  /** Add a geoNear stage to the aggregation pipeline */
   geoNear($geoNear: Document): this {
     assertUninitialized(this);
     this[kPipeline].push({ $geoNear });

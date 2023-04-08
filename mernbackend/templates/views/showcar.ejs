@@ -22,12 +22,26 @@
                 </a>
             </div>
             <!-- index.ejs -->
+
             <!-- <button onclick="exportToExcel2(this)">Export to Excel</button> -->
             <!-- <a id="checkAllTopicCheckBoxes" href="#">Export to Excel</a> -->
 
 
+
             <!-- form handling -->
-            <form action="/" method="POST">
+            <form action="/exportdata" method="POST">
+
+
+                <div class="box-nav d-flex justify-between">
+                    <button class="border-shadowtwo" type="submit">
+                        <span class="text-gradient">
+                            Export To Excel
+                        </span>
+                    </button>
+                </div>
+
+                <br>
+
 
                 <table class="table">
                     <thead class="thead-dark">
@@ -103,26 +117,26 @@
 </script>
 
 <script>
-    
 
 
-document.getElementById ("checkAllTopicCheckBoxes").addEventListener ("click", exportToExcel2, true);
-import { MongoClient } from 'mongodb';
-    function exportToExcel2() {
-        console.log('hello');
-        MongoClient.connect('mongodb://127.0.0.1:27017/Car-Rental', function (err, db) {
-            if (err) throw err;
-            var collection = db.collection('cardbs');
-            collection.find().toArray(function (err, data) {
-                if (err) throw err;
-                var workbook = XLSX.utils.book_new();
-                var sheet = XLSX.utils.json_to_sheet(data);
-                XLSX.utils.book_append_sheet(workbook, sheet, 'Sheet1');
-                XLSX.writeFile(workbook, 'data.xlsx');
-                db.close();
-            });
-        });
-    }
+
+// document.getElementById ("checkAllTopicCheckBoxes").addEventListener ("click", exportToExcel2, true);
+// import { MongoClient } from 'mongodb';
+//     function exportToExcel2() {
+//         console.log('hello');
+//         MongoClient.connect('mongodb://127.0.0.1:27017/Car-Rental', function (err, db) {
+//             if (err) throw err;
+//             var collection = db.collection('cardbs');
+//             collection.find().toArray(function (err, data) {
+//                 if (err) throw err;
+//                 var workbook = XLSX.utils.book_new();
+//                 var sheet = XLSX.utils.json_to_sheet(data);
+//                 XLSX.utils.book_append_sheet(workbook, sheet, 'Sheet1');
+//                 XLSX.writeFile(workbook, 'data.xlsx');
+//                 db.close();
+//             });
+//         });
+//     }
 </script>
 <!-- <script src="js/export.js"></script> -->
 

@@ -1,11 +1,4 @@
-import {
-  BSONSerializeOptions,
-  Document,
-  Long,
-  ObjectId,
-  resolveBSONOptions,
-  Timestamp
-} from '../bson';
+import { BSONSerializeOptions, Document, ObjectId, resolveBSONOptions } from '../bson';
 import type { Collection } from '../collection';
 import {
   AnyError,
@@ -22,7 +15,6 @@ import { executeOperation } from '../operations/execute_operation';
 import { InsertOperation } from '../operations/insert';
 import { AbstractOperation, Hint } from '../operations/operation';
 import { makeUpdateStatement, UpdateOperation, UpdateStatement } from '../operations/update';
-import { PromiseProvider } from '../promise_provider';
 import type { Server } from '../sdam/server';
 import type { Topology } from '../sdam/topology';
 import type { ClientSession } from '../sessions';
@@ -47,7 +39,7 @@ export const BatchType = Object.freeze({
 } as const);
 
 /** @public */
-export type BatchType = typeof BatchType[keyof typeof BatchType];
+export type BatchType = (typeof BatchType)[keyof typeof BatchType];
 
 /** @public */
 export interface InsertOneModel<TSchema extends Document = Document> {
@@ -130,7 +122,7 @@ export type AnyBulkWriteOperation<TSchema extends Document = Document> =
   | { deleteOne: DeleteOneModel<TSchema> }
   | { deleteMany: DeleteManyModel<TSchema> };
 
-/** @public */
+/** @internal */
 export interface BulkResult {
   ok: number;
   writeErrors: WriteError[];
@@ -142,7 +134,6 @@ export interface BulkResult {
   nModified: number;
   nRemoved: number;
   upserted: Document[];
-  opTime?: Document;
 }
 
 /**
@@ -176,7 +167,29 @@ export class Batch<T = Document> {
  * The result of a bulk write.
  */
 export class BulkWriteResult {
-  result: BulkResult;
+  private readonly result: BulkResult;
+  /** Number of documents inserted. */
+  readonly insertedCount: number;
+  /** Number of documents matched for update. */
+  readonly matchedCount: number;
+  /** Number of documents modified. */
+  readonly modifiedCount: number;
+  /** Number of documents deleted. */
+  readonly deletedCount: number;
+  /** Number of documents upserted. */
+  readonly upsertedCount: number;
+  /** Upserted document generated Id's, hash key is the index of the originating operation */
+  readonly upsertedIds: { [key: number]: any };
+  /** Inserted document generated Id's, hash key is the index of the originating operation */
+  readonly insertedIds: { [key: number]: any };
+
+  private static generateIdMap(ids: Document[]): { [key: number]: any } {
+    const idMap: { [index: number]: any } = {};
+    for (const doc of ids) {
+      idMap[doc.index] = doc._id;
+    }
+    return idMap;
+  }
 
   /**
    * Create a new BulkWriteResult instance
@@ -184,45 +197,14 @@ export class BulkWriteResult {
    */
   constructor(bulkResult: BulkResult) {
     this.result = bulkResult;
-  }
-
-  /** Number of documents inserted. */
-  get insertedCount(): number {
-    return this.result.nInserted ?? 0;
-  }
-  /** Number of documents matched for update. */
-  get matchedCount(): number {
-    return this.result.nMatched ?? 0;
-  }
-  /** Number of documents modified. */
-  get modifiedCount(): number {
-    return this.result.nModified ?? 0;
-  }
-  /** Number of documents deleted. */
-  get deletedCount(): number {
-    return this.result.nRemoved ?? 0;
-  }
-  /** Number of documents upserted. */
-  get upsertedCount(): number {
-    return this.result.upserted.length ?? 0;
-  }
-
-  /** Upserted document generated Id's, hash key is the index of the originating operation */
-  get upsertedIds(): { [key: number]: any } {
-    const upserted: { [index: number]: any } = {};
-    for (const doc of this.result.upserted ?? []) {
-      upserted[doc.index] = doc._id;
-    }
-    return upserted;
-  }
-
-  /** Inserted document generated Id's, hash key is the index of the originating operation */
-  get insertedIds(): { [key: number]: any } {
-    const inserted: { [index: number]: any } = {};
-    for (const doc of this.result.insertedIds ?? []) {
-      inserted[doc.index] = doc._id;
-    }
-    return inserted;
+    this.insertedCount = this.result.nInserted ?? 0;
+    this.matchedCount = this.result.nMatched ?? 0;
+    this.modifiedCount = this.result.nModified ?? 0;
+    this.deletedCount = this.result.nRemoved ?? 0;
+    this.upsertedCount = this.result.upserted.length ?? 0;
+    this.upsertedIds = BulkWriteResult.generateIdMap(this.result.upserted);
+    this.insertedIds = BulkWriteResult.generateIdMap(this.result.insertedIds);
+    Object.defineProperty(this, 'result', { value: this.result, enumerable: false });
   }
 
   /** Evaluates to true if the bulk operation correctly executes */
@@ -295,11 +277,6 @@ export class BulkWriteResult {
     return this.result.writeErrors;
   }
 
-  /** Retrieve lastOp if available */
-  getLastOp(): Document | undefined {
-    return this.result.opTime;
-  }
-
   /** Retrieve the write concern error if one exists */
   getWriteConcernError(): WriteConcernError | undefined {
     if (this.result.writeConcernErrors.length === 0) {
@@ -322,12 +299,8 @@ export class BulkWriteResult {
     }
   }
 
-  toJSON(): BulkResult {
-    return this.result;
-  }
-
   toString(): string {
-    return `BulkWriteResult(${this.toJSON()})`;
+    return `BulkWriteResult(${this.result})`;
   }
 
   isOk(): boolean {
@@ -368,11 +341,6 @@ export class WriteConcernError {
   /** Write concern error info. */
   get errInfo(): Document | undefined {
     return this[kServerError].errInfo;
-  }
-
-  /** @deprecated The `err` prop that contained a MongoServerError has been deprecated. */
-  get err(): WriteConcernErrorData {
-    return this[kServerError];
   }
 
   toJSON(): WriteConcernErrorData {
@@ -439,12 +407,6 @@ export class WriteError {
   }
 }
 
-/** Converts the number to a Long or returns it. */
-function longOrConvert(value: number | Long | Timestamp): Long | Timestamp {
-  // TODO(NODE-2674): Preserve int64 sent from MongoDB
-  return typeof value === 'number' ? Long.fromNumber(value) : value;
-}
-
 /** Merges results into shared data structure */
 export function mergeBatchResults(
   batch: Batch,
@@ -479,44 +441,6 @@ export function mergeBatchResults(
     return;
   } else if (result.ok === 0 && bulkResult.ok === 0) {
     return;
-  }
-
-  // The server write command specification states that lastOp is an optional
-  // mongod only field that has a type of timestamp. Across various scarce specs
-  // where opTime is mentioned, it is an "opaque" object that can have a "ts" and
-  // "t" field with Timestamp and Long as their types respectively.
-  // The "lastOp" field of the bulk write result is never mentioned in the driver
-  // specifications or the bulk write spec, so we should probably just keep its
-  // value consistent since it seems to vary.
-  // See: https://github.com/mongodb/specifications/blob/master/source/driver-bulk-update.rst#results-object
-  if (result.opTime || result.lastOp) {
-    let opTime = result.lastOp || result.opTime;
-
-    // If the opTime is a Timestamp, convert it to a consistent format to be
-    // able to compare easily. Converting to the object from a timestamp is
-    // much more straightforward than the other direction.
-    if (opTime._bsontype === 'Timestamp') {
-      opTime = { ts: opTime, t: Long.ZERO };
-    }
-
-    // If there's no lastOp, just set it.
-    if (!bulkResult.opTime) {
-      bulkResult.opTime = opTime;
-    } else {
-      // First compare the ts values and set if the opTimeTS value is greater.
-      const lastOpTS = longOrConvert(bulkResult.opTime.ts);
-      const opTimeTS = longOrConvert(opTime.ts);
-      if (opTimeTS.greaterThan(lastOpTS)) {
-        bulkResult.opTime = opTime;
-      } else if (opTimeTS.equals(lastOpTS)) {
-        // If the ts values are equal, then compare using the t values.
-        const lastOpT = longOrConvert(bulkResult.opTime.t);
-        const opTimeT = longOrConvert(opTime.t);
-        if (opTimeT.greaterThan(lastOpT)) {
-          bulkResult.opTime = opTime;
-        }
-      }
-    }
   }
 
   // If we have an insert Batch type
@@ -606,12 +530,8 @@ function executeCommands(
     }
 
     // Merge the results together
+    mergeBatchResults(batch, bulkOperation.s.bulkResult, err, result);
     const writeResult = new BulkWriteResult(bulkOperation.s.bulkResult);
-    const mergeResult = mergeBatchResults(batch, bulkOperation.s.bulkResult, err, result);
-    if (mergeResult != null) {
-      return callback(undefined, writeResult);
-    }
-
     if (bulkOperation.handleWriteError(callback, writeResult)) return;
 
     // Execute the next command in line
@@ -784,7 +704,7 @@ export class FindOperators {
   }
 
   /** Add a multiple update operation to the bulk operation */
-  update(updateDocument: Document): BulkOperationBase {
+  update(updateDocument: Document | Document[]): BulkOperationBase {
     const currentOp = buildCurrentOp(this.bulkOperation);
     return this.bulkOperation.addToOperationsList(
       BatchType.UPDATE,
@@ -796,7 +716,7 @@ export class FindOperators {
   }
 
   /** Add a single update operation to the bulk operation */
-  updateOne(updateDocument: Document): BulkOperationBase {
+  updateOne(updateDocument: Document | Document[]): BulkOperationBase {
     if (!hasAtomicOperators(updateDocument)) {
       throw new MongoInvalidArgumentError('Update document requires atomic operators');
     }
@@ -868,6 +788,16 @@ export class FindOperators {
     this.bulkOperation.s.currentOp.arrayFilters = arrayFilters;
     return this;
   }
+
+  /** Specifies hint for the bulk operation. */
+  hint(hint: Hint): this {
+    if (!this.bulkOperation.s.currentOp) {
+      this.bulkOperation.s.currentOp = {};
+    }
+
+    this.bulkOperation.s.currentOp.hint = hint;
+    return this;
+  }
 }
 
 /** @internal */
@@ -917,8 +847,6 @@ export interface BulkWriteOptions extends CommandOperationOptions {
   bypassDocumentValidation?: boolean;
   /** If true, when an insert fails, don't execute the remaining writes. If false, continue with remaining inserts when one fails. */
   ordered?: boolean;
-  /** @deprecated use `ordered` instead */
-  keepGoing?: boolean;
   /** Force server to assign _id values instead of driver. */
   forceServerObjectId?: boolean;
   /** Map of parameter names and values that can be accessed using $$var (requires MongoDB 5.0). */
@@ -1065,7 +993,7 @@ export abstract class BulkOperationBase {
    * Add a single insert document to the bulk operation
    *
    * @example
-   * ```js
+   * ```ts
    * const bulkOp = collection.initializeOrderedBulkOp();
    *
    * // Adds three inserts to the bulkOp.
@@ -1089,7 +1017,7 @@ export abstract class BulkOperationBase {
    * Returns a builder object used to complete the definition of the operation.
    *
    * @example
-   * ```js
+   * ```ts
    * const bulkOp = collection.initializeOrderedBulkOp();
    *
    * // Add an updateOne to the bulkOp
@@ -1246,22 +1174,9 @@ export abstract class BulkOperationBase {
     return batches;
   }
 
-  execute(options?: BulkWriteOptions): Promise<BulkWriteResult>;
-  execute(callback: Callback<BulkWriteResult>): void;
-  execute(options: BulkWriteOptions | undefined, callback: Callback<BulkWriteResult>): void;
-  execute(
-    options?: BulkWriteOptions | Callback<BulkWriteResult>,
-    callback?: Callback<BulkWriteResult>
-  ): Promise<BulkWriteResult> | void;
-  execute(
-    options?: BulkWriteOptions | Callback<BulkWriteResult>,
-    callback?: Callback<BulkWriteResult>
-  ): Promise<BulkWriteResult> | void {
-    if (typeof options === 'function') (callback = options), (options = {});
-    options = options ?? {};
-
+  async execute(options: BulkWriteOptions = {}): Promise<BulkWriteResult> {
     if (this.s.executed) {
-      return handleEarlyError(new MongoBatchReExecutionError(), callback);
+      throw new MongoBatchReExecutionError();
     }
 
     const writeConcern = WriteConcern.fromOptions(options);
@@ -1279,17 +1194,14 @@ export abstract class BulkOperationBase {
     }
     // If we have no operations in the bulk raise an error
     if (this.s.batches.length === 0) {
-      const emptyBatchError = new MongoInvalidArgumentError(
-        'Invalid BulkOperation, Batch cannot be empty'
-      );
-      return handleEarlyError(emptyBatchError, callback);
+      throw new MongoInvalidArgumentError('Invalid BulkOperation, Batch cannot be empty');
     }
 
     this.s.executed = true;
     const finalOptions = { ...this.s.options, ...options };
     const operation = new BulkWriteShimOperation(this, finalOptions);
 
-    return executeOperation(this.s.collection.s.db.s.client, operation, callback);
+    return executeOperation(this.s.collection.s.db.s.client, operation);
   }
 
   /**
@@ -1337,20 +1249,6 @@ Object.defineProperty(BulkOperationBase.prototype, 'length', {
     return this.s.currentIndex;
   }
 });
-
-/** helper function to assist with promiseOrCallback behavior */
-function handleEarlyError(
-  err?: AnyError,
-  callback?: Callback<BulkWriteResult>
-): Promise<BulkWriteResult> | void {
-  const Promise = PromiseProvider.get();
-  if (typeof callback === 'function') {
-    callback(err);
-    return;
-  }
-
-  return Promise.reject(err);
-}
 
 function shouldForceServerObjectId(bulkOperation: BulkOperationBase): boolean {
   if (typeof bulkOperation.s.options.forceServerObjectId === 'boolean') {

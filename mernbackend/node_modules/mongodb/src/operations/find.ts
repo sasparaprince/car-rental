@@ -1,17 +1,11 @@
 import type { Document } from '../bson';
 import type { Collection } from '../collection';
-import { MongoCompatibilityError, MongoInvalidArgumentError } from '../error';
+import { MongoInvalidArgumentError } from '../error';
 import { ReadConcern } from '../read_concern';
 import type { Server } from '../sdam/server';
 import type { ClientSession } from '../sessions';
 import { formatSort, Sort } from '../sort';
-import {
-  Callback,
-  decorateWithExplain,
-  maxWireVersion,
-  MongoDBNamespace,
-  normalizeHintField
-} from '../utils';
+import { Callback, decorateWithExplain, MongoDBNamespace, normalizeHintField } from '../utils';
 import { CollationOptions, CommandOperation, CommandOperationOptions } from './command';
 import { Aspect, defineAspects, Hint } from './operation';
 
@@ -20,7 +14,8 @@ import { Aspect, defineAspects, Hint } from './operation';
  * @typeParam TSchema - Unused schema definition, deprecated usage, only specify `FindOptions` with no generic
  */
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export interface FindOptions<TSchema extends Document = Document> extends CommandOperationOptions {
+export interface FindOptions<TSchema extends Document = Document>
+  extends Omit<CommandOperationOptions, 'writeConcern'> {
   /** Sets the limit of documents returned in the query. */
   limit?: number;
   /** Set to sort the documents coming back from the query. Array of indexes, `[['a', 1]]` etc. */
@@ -70,11 +65,16 @@ export interface FindOptions<TSchema extends Document = Document> extends Comman
   oplogReplay?: boolean;
 }
 
-const SUPPORTS_WRITE_CONCERN_AND_COLLATION = 5;
-
 /** @internal */
 export class FindOperation extends CommandOperation<Document> {
-  override options: FindOptions;
+  /**
+   * @remarks WriteConcern can still be present on the options because
+   * we inherit options from the client/db/collection.  The
+   * key must be present on the options in order to delete it.
+   * This allows typescript to delete the key but will
+   * not allow a writeConcern to be assigned as a property on options.
+   */
+  override options: FindOptions & { writeConcern?: never };
   filter: Document;
 
   constructor(
@@ -85,7 +85,8 @@ export class FindOperation extends CommandOperation<Document> {
   ) {
     super(collection, options);
 
-    this.options = options;
+    this.options = { ...options };
+    delete this.options.writeConcern;
     this.ns = ns;
 
     if (typeof filter !== 'object' || Array.isArray(filter)) {
@@ -103,7 +104,7 @@ export class FindOperation extends CommandOperation<Document> {
     }
 
     // special case passing in an ObjectId as a filter
-    this.filter = filter != null && filter._bsontype === 'ObjectID' ? { _id: filter } : filter;
+    this.filter = filter != null && filter._bsontype === 'ObjectId' ? { _id: filter } : filter;
   }
 
   override execute(
@@ -113,24 +114,7 @@ export class FindOperation extends CommandOperation<Document> {
   ): void {
     this.server = server;
 
-    const serverWireVersion = maxWireVersion(server);
     const options = this.options;
-    if (options.allowDiskUse != null && serverWireVersion < 4) {
-      callback(
-        new MongoCompatibilityError('Option "allowDiskUse" is not supported on MongoDB < 3.2')
-      );
-      return;
-    }
-
-    if (options.collation && serverWireVersion < SUPPORTS_WRITE_CONCERN_AND_COLLATION) {
-      callback(
-        new MongoCompatibilityError(
-          `Server ${server.name}, which reports wire version ${serverWireVersion}, does not support collation`
-        )
-      );
-
-      return;
-    }
 
     let findCommand = makeFindCommand(this.ns, this.filter, options);
     if (this.explain) {

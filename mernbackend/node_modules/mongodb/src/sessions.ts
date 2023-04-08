@@ -1,3 +1,5 @@
+import { promisify } from 'util';
+
 import { Binary, Document, Long, Timestamp } from './bson';
 import type { CommandOptions, Connection } from './cmap/connection';
 import { ConnectionPoolMetrics } from './cmap/metrics';
@@ -23,18 +25,18 @@ import type { MongoClient, MongoOptions } from './mongo_client';
 import { TypedEventEmitter } from './mongo_types';
 import { executeOperation } from './operations/execute_operation';
 import { RunAdminCommandOperation } from './operations/run_command';
-import { PromiseProvider } from './promise_provider';
 import { ReadConcernLevel } from './read_concern';
 import { ReadPreference } from './read_preference';
 import { _advanceClusterTime, ClusterTime, TopologyType } from './sdam/common';
 import { isTransactionCommand, Transaction, TransactionOptions, TxnState } from './transactions';
 import {
+  ByteUtils,
   calculateDurationInMs,
   Callback,
   commandSupportsReadConcern,
   isPromiseLike,
+  List,
   maxWireVersion,
-  maybePromise,
   now,
   uuidV4
 } from './utils';
@@ -166,8 +168,10 @@ export class ClientSession extends TypedEventEmitter<ClientSessionEvents> {
     this[kServerSession] = this.explicit ? this.sessionPool.acquire() : null;
     this[kTxnNumberIncrement] = 0;
 
+    const defaultCausalConsistencyValue = this.explicit && options.snapshot !== true;
     this.supports = {
-      causalConsistency: options.snapshot !== true && options.causalConsistency !== false
+      // if we can enable causal consistency, do so by default
+      causalConsistency: options.causalConsistency ?? defaultCausalConsistencyValue
     };
 
     this.clusterTime = options.initialClusterTime;
@@ -242,28 +246,13 @@ export class ClientSession extends TypedEventEmitter<ClientSessionEvents> {
    * Ends this session on the server
    *
    * @param options - Optional settings. Currently reserved for future use
-   * @param callback - Optional callback for completion of this operation
    */
-  endSession(): Promise<void>;
-  endSession(callback: Callback<void>): void;
-  endSession(options: EndSessionOptions): Promise<void>;
-  endSession(options: EndSessionOptions, callback: Callback<void>): void;
-  endSession(
-    options?: EndSessionOptions | Callback<void>,
-    callback?: Callback<void>
-  ): void | Promise<void> {
-    if (typeof options === 'function') (callback = options), (options = {});
-    const finalOptions = { force: true, ...options };
-
-    return maybePromise(callback, done => {
-      if (this.hasEnded) {
-        maybeClearPinnedConnection(this, finalOptions);
-        return done();
+  async endSession(options?: EndSessionOptions): Promise<void> {
+    try {
+      if (this.inTransaction()) {
+        await this.abortTransaction();
       }
-
-      const completeEndSession = () => {
-        maybeClearPinnedConnection(this, finalOptions);
-
+      if (!this.hasEnded) {
         const serverSession = this[kServerSession];
         if (serverSession != null) {
           // release the server session back to the pool
@@ -274,28 +263,15 @@ export class ClientSession extends TypedEventEmitter<ClientSessionEvents> {
             writable: false
           });
         }
-
         // mark the session as ended, and emit a signal
         this.hasEnded = true;
         this.emit('ended', this);
-
-        // spec indicates that we should ignore all errors for `endSessions`
-        done();
-      };
-
-      if (this.inTransaction()) {
-        // If we've reached endSession and the transaction is still active
-        // by default we abort it
-        this.abortTransaction(err => {
-          if (err) return done(err);
-          completeEndSession();
-        });
-
-        return;
       }
-
-      completeEndSession();
-    });
+    } catch {
+      // spec indicates that we should ignore all errors for `endSessions`
+    } finally {
+      maybeClearPinnedConnection(this, { force: true, ...options });
+    }
   }
 
   /**
@@ -331,7 +307,8 @@ export class ClientSession extends TypedEventEmitter<ClientSessionEvents> {
     if (
       !clusterTime.signature ||
       clusterTime.signature.hash?._bsontype !== 'Binary' ||
-      (typeof clusterTime.signature.keyId !== 'number' &&
+      (typeof clusterTime.signature.keyId !== 'bigint' &&
+        typeof clusterTime.signature.keyId !== 'number' &&
         clusterTime.signature.keyId?._bsontype !== 'Long') // apparently we decode the key to number?
     ) {
       throw new MongoInvalidArgumentError(
@@ -356,7 +333,7 @@ export class ClientSession extends TypedEventEmitter<ClientSessionEvents> {
       return false;
     }
 
-    return this.id.id.buffer.equals(session.id.id.buffer);
+    return ByteUtils.equals(this.id.id.buffer, session.id.id.buffer);
   }
 
   /**
@@ -429,24 +406,16 @@ export class ClientSession extends TypedEventEmitter<ClientSessionEvents> {
 
   /**
    * Commits the currently active transaction in this session.
-   *
-   * @param callback - An optional callback, a Promise will be returned if none is provided
    */
-  commitTransaction(): Promise<Document>;
-  commitTransaction(callback: Callback<Document>): void;
-  commitTransaction(callback?: Callback<Document>): Promise<Document> | void {
-    return maybePromise(callback, cb => endTransaction(this, 'commitTransaction', cb));
+  async commitTransaction(): Promise<Document> {
+    return endTransactionAsync(this, 'commitTransaction');
   }
 
   /**
    * Aborts the currently active transaction in this session.
-   *
-   * @param callback - An optional callback, a Promise will be returned if none is provided
    */
-  abortTransaction(): Promise<Document>;
-  abortTransaction(callback: Callback<Document>): void;
-  abortTransaction(callback?: Callback<Document>): Promise<Document> | void {
-    return maybePromise(callback, cb => endTransaction(this, 'abortTransaction', cb));
+  async abortTransaction(): Promise<Document> {
+    return endTransactionAsync(this, 'abortTransaction');
   }
 
   /**
@@ -477,7 +446,7 @@ export class ClientSession extends TypedEventEmitter<ClientSessionEvents> {
    * @param options - optional settings for the transaction
    * @returns A raw command response or undefined
    */
-  withTransaction<T = void>(
+  async withTransaction<T = void>(
     fn: WithTransactionCallback<T>,
     options?: TransactionOptions
   ): Promise<Document | undefined> {
@@ -545,7 +514,7 @@ export function maybeClearPinnedConnection(
       );
 
       if (options?.forceClear) {
-        loadBalancer.s.pool.clear(conn.serviceId);
+        loadBalancer.s.pool.clear({ serviceId: conn.serviceId });
       }
     }
 
@@ -605,7 +574,6 @@ function attemptTransaction<TSchema>(
   fn: WithTransactionCallback<TSchema>,
   options?: TransactionOptions
 ): Promise<any> {
-  const Promise = PromiseProvider.get();
   session.startTransaction(options);
 
   let promise;
@@ -655,6 +623,14 @@ function attemptTransaction<TSchema>(
     }
   );
 }
+
+const endTransactionAsync = promisify(
+  endTransaction as (
+    session: ClientSession,
+    commandName: 'abortTransaction' | 'commitTransaction',
+    callback: (error: Error, result: Document) => void
+  ) => void
+);
 
 function endTransaction(
   session: ClientSession,
@@ -879,7 +855,7 @@ export class ServerSession {
  */
 export class ServerSessionPool {
   client: MongoClient;
-  sessions: ServerSession[];
+  sessions: List<ServerSession>;
 
   constructor(client: MongoClient) {
     if (client == null) {
@@ -887,7 +863,7 @@ export class ServerSessionPool {
     }
 
     this.client = client;
-    this.sessions = [];
+    this.sessions = new List<ServerSession>();
   }
 
   /**
@@ -940,14 +916,7 @@ export class ServerSessionPool {
       return;
     }
 
-    while (this.sessions.length) {
-      const pooledSession = this.sessions[this.sessions.length - 1];
-      if (pooledSession.hasTimedOut(sessionTimeoutMinutes)) {
-        this.sessions.pop();
-      } else {
-        break;
-      }
-    }
+    this.sessions.prune(session => session.hasTimedOut(sessionTimeoutMinutes));
 
     if (!session.hasTimedOut(sessionTimeoutMinutes)) {
       if (session.isDirty) {

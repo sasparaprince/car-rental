@@ -18,7 +18,11 @@ const axios = require('axios');
 const port = process.env.PORT || 3000;
 const connectDB = require('./server/db/conn');
 var Userdb = require('./server/models/model');
-const multer  = require('multer')
+const multer  = require('multer');
+var XLSX = require('xlsx');
+const MongoClient = require('mongodb').MongoClient;
+// const xlsx = require('xlsx');
+// const fs = require('fs');
 
 
 
@@ -319,6 +323,32 @@ const storage = multer.diskStorage({
 
 module.exports = upload
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+// const dbName = 'Car-Rental';
+// const collectionName = 'cardbs';
+
+
+
+app.post('/exportdata',(req,res)=>{
+    var wb = XLSX.utils.book_new(); //new workbook
+    Userdb.find((err,data)=>{
+        if(err){
+            console.log(err)
+        }else{
+            var temp = JSON.stringify(data);
+            temp = JSON.parse(temp);
+            var ws = XLSX.utils.json_to_sheet(temp);
+            var down = __dirname+'/upload/output.xlsx';
+           XLSX.utils.book_append_sheet(wb,ws,"sheet1");
+           XLSX.writeFile(wb,down);
+           res.download(down);
+        }
+    });
+});
+
+
+
+
+
 
 app.listen(port, () => {
     console.log(`server is running at port no: ${port}`);

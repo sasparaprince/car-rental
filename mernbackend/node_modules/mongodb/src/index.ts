@@ -1,5 +1,6 @@
 import { Admin } from './admin';
-import { ObjectId } from './bson';
+import { OrderedBulkOperation } from './bulk/ordered';
+import { UnorderedBulkOperation } from './bulk/unordered';
 import { ChangeStream } from './change_stream';
 import { Collection } from './collection';
 import { AbstractCursor } from './cursor/abstract_cursor';
@@ -9,37 +10,32 @@ import { ListCollectionsCursor } from './cursor/list_collections_cursor';
 import { ListIndexesCursor } from './cursor/list_indexes_cursor';
 import { Db } from './db';
 import { GridFSBucket } from './gridfs';
-import { Logger } from './logger';
+import { GridFSBucketReadStream } from './gridfs/download';
+import { GridFSBucketWriteStream } from './gridfs/upload';
 import { MongoClient } from './mongo_client';
 import { CancellationToken } from './mongo_types';
-import { PromiseProvider } from './promise_provider';
+import { ClientSession } from './sessions';
 
-/** @internal */
+/** @public */
 export { BSON } from './bson';
 export {
   Binary,
   BSONRegExp,
   BSONSymbol,
+  BSONType,
   Code,
   DBRef,
   Decimal128,
   Double,
   Int32,
   Long,
-  Map,
   MaxKey,
   MinKey,
   ObjectId,
   Timestamp
 } from './bson';
-export { ChangeStreamCursor } from './cursor/change_stream_cursor';
-/**
- * @public
- * @deprecated Please use `ObjectId`
- */
-export const ObjectID = ObjectId;
-
 export { AnyBulkWriteOperation, BulkWriteOptions, MongoBulkWriteError } from './bulk/common';
+export { ChangeStreamCursor } from './cursor/change_stream_cursor';
 export {
   MongoAPIError,
   MongoAWSError,
@@ -80,16 +76,18 @@ export {
   AggregationCursor,
   CancellationToken,
   ChangeStream,
+  ClientSession,
   Collection,
   Db,
   FindCursor,
   GridFSBucket,
+  GridFSBucketReadStream,
+  GridFSBucketWriteStream,
   ListCollectionsCursor,
   ListIndexesCursor,
-  Logger,
   MongoClient,
-  // Utils
-  PromiseProvider as Promise
+  OrderedBulkOperation,
+  UnorderedBulkOperation
 };
 
 // enums
@@ -101,9 +99,7 @@ export { CURSOR_FLAGS } from './cursor/abstract_cursor';
 export { AutoEncryptionLoggerLevel } from './deps';
 export { MongoErrorLabel } from './error';
 export { ExplainVerbosity } from './explain';
-export { LoggerLevel } from './logger';
 export { ServerApiVersion } from './mongo_client';
-export { BSONType } from './mongo_types';
 export { ReturnDocument } from './operations/find_and_modify';
 export { ProfilingLevel } from './operations/set_profiling_level';
 export { ReadConcernLevel } from './read_concern';
@@ -132,6 +128,7 @@ export {
   ConnectionPoolClosedEvent,
   ConnectionPoolCreatedEvent,
   ConnectionPoolMonitoringEvent,
+  ConnectionPoolReadyEvent,
   ConnectionReadyEvent
 } from './cmap/connection_pool_events';
 export {
@@ -171,8 +168,6 @@ export type {
   FindOperators,
   WriteConcernErrorData
 } from './bulk/common';
-export type { OrderedBulkOperation } from './bulk/ordered';
-export type { UnorderedBulkOperation } from './bulk/unordered';
 export type {
   ChangeStreamCollModDocument,
   ChangeStreamCreateDocument,
@@ -198,16 +193,22 @@ export type {
   ChangeStreamShardCollectionDocument,
   ChangeStreamUpdateDocument,
   OperationTime,
-  PipeOptions,
   ResumeOptions,
   ResumeToken,
   UpdateDescription
 } from './change_stream';
+export type { AuthContext } from './cmap/auth/auth_provider';
 export type {
   AuthMechanismProperties,
   MongoCredentials,
   MongoCredentialsOptions
 } from './cmap/auth/mongo_credentials';
+export type {
+  OIDCMechanismServerStep1,
+  OIDCRefreshFunction,
+  OIDCRequestFunction,
+  OIDCRequestTokenResult
+} from './cmap/auth/mongodb_oidc';
 export type {
   BinMsg,
   MessageHeader,
@@ -226,9 +227,7 @@ export type {
   ConnectionEvents,
   ConnectionOptions,
   DestroyOptions,
-  GetMoreOptions,
-  ProxyOptions,
-  QueryOptions
+  ProxyOptions
 } from './cmap/connection';
 export type {
   CloseOptions,
@@ -252,7 +251,6 @@ export type { MONGO_CLIENT_EVENTS } from './constants';
 export type {
   AbstractCursorEvents,
   AbstractCursorOptions,
-  CursorCloseOptions,
   CursorFlag,
   CursorStreamOptions
 } from './cursor/abstract_cursor';
@@ -268,19 +266,13 @@ export type { Encrypter, EncrypterOptions } from './encrypter';
 export type { AnyError, ErrorDescription, MongoNetworkErrorOptions } from './error';
 export type { Explain, ExplainOptions, ExplainVerbosityLike } from './explain';
 export type {
-  GridFSBucketReadStream,
   GridFSBucketReadStreamOptions,
   GridFSBucketReadStreamOptionsWithRevision,
   GridFSBucketReadStreamPrivate,
   GridFSFile
 } from './gridfs/download';
 export type { GridFSBucketEvents, GridFSBucketOptions, GridFSBucketPrivate } from './gridfs/index';
-export type {
-  GridFSBucketWriteStream,
-  GridFSBucketWriteStreamOptions,
-  GridFSChunk
-} from './gridfs/upload';
-export type { LoggerFunction, LoggerOptions } from './logger';
+export type { GridFSBucketWriteStreamOptions, GridFSChunk } from './gridfs/upload';
 export type {
   Auth,
   DriverInfo,
@@ -296,6 +288,14 @@ export type {
   SupportedTLSSocketOptions,
   WithSessionCallback
 } from './mongo_client';
+export type {
+  MongoLoggableComponent,
+  MongoLogger,
+  MongoLoggerEnvOptions,
+  MongoLoggerMongoClientOptions,
+  MongoLoggerOptions,
+  SeverityLevel
+} from './mongo_logger';
 export type {
   CommonEvents,
   EventsDescription,
@@ -332,8 +332,6 @@ export type {
   OnlyFieldsOfType,
   OptionalId,
   OptionalUnlessRequiredId,
-  Projection,
-  ProjectionOperators,
   PropertyType,
   PullAllOperator,
   PullOperator,
@@ -342,6 +340,9 @@ export type {
   RootFilterOperators,
   SchemaMember,
   SetFields,
+  StrictFilter,
+  StrictMatchKeysAndValues,
+  StrictUpdateFilter,
   UpdateFilter,
   WithId,
   WithoutId
@@ -389,12 +390,6 @@ export type {
 export type { InsertManyResult, InsertOneOptions, InsertOneResult } from './operations/insert';
 export type { CollectionInfo, ListCollectionsOptions } from './operations/list_collections';
 export type { ListDatabasesOptions, ListDatabasesResult } from './operations/list_databases';
-export type {
-  FinalizeFunction,
-  MapFunction,
-  MapReduceOptions,
-  ReduceFunction
-} from './operations/map_reduce';
 export type { AbstractOperation, Hint, OperationOptions } from './operations/operation';
 export type { ProfilingLevelOptions } from './operations/profiling_level';
 export type { RemoveUserOptions } from './operations/remove_user';
@@ -426,6 +421,8 @@ export type { ClusterTime, TimerQueue } from './sdam/common';
 export type {
   Monitor,
   MonitorEvents,
+  MonitorInterval,
+  MonitorIntervalOptions,
   MonitorOptions,
   MonitorPrivate,
   RTTPinger,
@@ -453,7 +450,6 @@ export type {
 } from './sdam/topology';
 export type { TopologyDescription, TopologyDescriptionOptions } from './sdam/topology_description';
 export type {
-  ClientSession,
   ClientSessionEvents,
   ClientSessionOptions,
   EndSessionOptions,
@@ -471,7 +467,7 @@ export type {
   ClientMetadataOptions,
   EventEmitterWithState,
   HostAddress,
-  InterruptibleAsyncInterval,
+  List,
   MongoDBNamespace
 } from './utils';
 export type { W, WriteConcernOptions, WriteConcernSettings } from './write_concern';

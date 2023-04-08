@@ -41,14 +41,31 @@ a {
     text-align: center;
 }
 
-.border-shadow{
+.border-shadow {
     border: 1px solid var(--border-btn);
     box-shadow: 1px 3px 10px #e9ecef;
+}
+.border-shadowtwo{
+    border: 2px solid var(--border-btn);
+    /* box-shadow: 1px 3px 10px #e9ecef; */
+    background-color: white;
+    height: 40px;
+    width: 150px;
+}
+
+.border-shadowtwo:hover{
+    background-color: #16db93;
+    border: 1px solid;
+    padding: 10px;
+    cursor: pointer;
+
+    box-shadow: 5px 10px;
 }
 .border-shadow:hover{
     background-color: #16db93;
     border: 1px solid;
     padding: 10px;
+    cursor: pointer;
     box-shadow: 5px 10px;
 }
 

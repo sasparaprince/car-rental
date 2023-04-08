@@ -1,7 +1,6 @@
 import type { BSONSerializeOptions, Document } from '../bson';
-import { MongoCompatibilityError, MongoInvalidArgumentError } from '../error';
+import { MongoInvalidArgumentError } from '../error';
 import { Explain, ExplainOptions } from '../explain';
-import type { Logger } from '../logger';
 import { ReadConcern } from '../read_concern';
 import type { ReadPreference } from '../read_preference';
 import type { Server } from '../sdam/server';
@@ -17,8 +16,6 @@ import {
 import { WriteConcern, WriteConcernOptions } from '../write_concern';
 import type { ReadConcernLike } from './../read_concern';
 import { AbstractOperation, Aspect, OperationOptions } from './operation';
-
-const SUPPORTS_WRITE_CONCERN_AND_COLLATION = 5;
 
 /** @public */
 export interface CollationOptions {
@@ -38,8 +35,6 @@ export interface CommandOperationOptions
   extends OperationOptions,
     WriteConcernOptions,
     ExplainOptions {
-  /** @deprecated This option does nothing */
-  fullResponse?: boolean;
   /** Specify a read concern and level for the collection. (only MongoDB 3.2 or higher supported) */
   readConcern?: ReadConcernLike;
   /** Collation */
@@ -69,7 +64,6 @@ export interface OperationParent {
   readConcern?: ReadConcern;
   writeConcern?: WriteConcern;
   readPreference?: ReadPreference;
-  logger?: Logger;
   bsonOptions?: BSONSerializeOptions;
 }
 
@@ -79,7 +73,6 @@ export abstract class CommandOperation<T> extends AbstractOperation<T> {
   readConcern?: ReadConcern;
   writeConcern?: WriteConcern;
   explain?: Explain;
-  logger?: Logger;
 
   constructor(parent?: OperationParent, options?: CommandOperationOptions) {
     super(options);
@@ -100,11 +93,6 @@ export abstract class CommandOperation<T> extends AbstractOperation<T> {
     this.readConcern = ReadConcern.fromOptions(options);
     this.writeConcern = WriteConcern.fromOptions(options);
 
-    // TODO(NODE-2056): make logger another "inheritable" property
-    if (parent && parent.logger) {
-      this.logger = parent.logger;
-    }
-
     if (this.hasAspect(Aspect.EXPLAINABLE)) {
       this.explain = Explain.fromOptions(options);
     } else if (options?.explain != null) {
@@ -118,12 +106,6 @@ export abstract class CommandOperation<T> extends AbstractOperation<T> {
     }
     return true;
   }
-
-  abstract override execute(
-    server: Server,
-    session: ClientSession | undefined,
-    callback: Callback<T>
-  ): void;
 
   executeCommand(
     server: Server,
@@ -152,27 +134,16 @@ export abstract class CommandOperation<T> extends AbstractOperation<T> {
       options.omitReadPreference = true;
     }
 
-    if (options.collation && serverWireVersion < SUPPORTS_WRITE_CONCERN_AND_COLLATION) {
-      callback(
-        new MongoCompatibilityError(
-          `Server ${server.name}, which reports wire version ${serverWireVersion}, does not support collation`
-        )
-      );
-      return;
-    }
-
     if (this.writeConcern && this.hasAspect(Aspect.WRITE_OPERATION) && !inTransaction) {
       Object.assign(cmd, { writeConcern: this.writeConcern });
     }
 
-    if (serverWireVersion >= SUPPORTS_WRITE_CONCERN_AND_COLLATION) {
-      if (
-        options.collation &&
-        typeof options.collation === 'object' &&
-        !this.hasAspect(Aspect.SKIP_COLLATION)
-      ) {
-        Object.assign(cmd, { collation: options.collation });
-      }
+    if (
+      options.collation &&
+      typeof options.collation === 'object' &&
+      !this.hasAspect(Aspect.SKIP_COLLATION)
+    ) {
+      Object.assign(cmd, { collation: options.collation });
     }
 
     if (typeof options.maxTimeMS === 'number') {
@@ -180,12 +151,7 @@ export abstract class CommandOperation<T> extends AbstractOperation<T> {
     }
 
     if (this.hasAspect(Aspect.EXPLAINABLE) && this.explain) {
-      if (serverWireVersion < 6 && cmd.aggregate) {
-        // Prior to 3.6, with aggregate, verbosity is ignored, and we must pass in "explain: true"
-        cmd.explain = true;
-      } else {
-        cmd = decorateWithExplain(cmd, this.explain);
-      }
+      cmd = decorateWithExplain(cmd, this.explain);
     }
 
     server.command(this.ns, cmd, options, callback);

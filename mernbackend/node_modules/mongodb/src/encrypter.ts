@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-var-requires */
-import { deserialize, serialize } from './bson';
+
 import { MONGO_CLIENT_EVENTS } from './constants';
 import type { AutoEncrypter, AutoEncryptionOptions } from './deps';
 import { MongoInvalidArgumentError, MongoMissingDependencyError } from './error';
@@ -57,12 +57,6 @@ export class Encrypter {
       };
     }
 
-    options.autoEncryption.bson = Object.create(null);
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    options.autoEncryption.bson!.serialize = serialize;
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    options.autoEncryption.bson!.deserialize = deserialize;
-
     this.autoEncrypter = new AutoEncrypterClass(client, options.autoEncryption);
   }
 
@@ -101,22 +95,24 @@ export class Encrypter {
     return internalClient;
   }
 
-  connectInternalClient(callback: Callback): void {
+  async connectInternalClient(): Promise<void> {
     // TODO(NODE-4144): Remove new variable for type narrowing
     const internalClient = this[kInternalClient];
     if (this.needsConnecting && internalClient != null) {
       this.needsConnecting = false;
-      return internalClient.connect(callback);
+      await internalClient.connect();
     }
-
-    return callback();
   }
 
   close(client: MongoClient, force: boolean, callback: Callback): void {
     this.autoEncrypter.teardown(!!force, e => {
       const internalClient = this[kInternalClient];
       if (internalClient != null && client !== internalClient) {
-        return internalClient.close(force, callback);
+        internalClient.close(force).then(
+          () => callback(),
+          error => callback(error)
+        );
+        return;
       }
       callback(e);
     });

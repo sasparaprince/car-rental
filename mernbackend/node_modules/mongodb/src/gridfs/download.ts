@@ -19,9 +19,14 @@ import type { GridFSChunk } from './upload';
 export interface GridFSBucketReadStreamOptions {
   sort?: Sort;
   skip?: number;
-  /** 0-based offset in bytes to start streaming from */
+  /**
+   * 0-indexed non-negative byte offset from the beginning of the file
+   */
   start?: number;
-  /** 0-based offset in bytes to stop streaming before */
+  /**
+   * 0-indexed non-negative byte offset to the end of the file contents
+   * to be returned by the stream. `end` is non-inclusive
+   */
   end?: number;
 }
 
@@ -103,11 +108,12 @@ export class GridFSBucketReadStream extends Readable implements NodeJS.ReadableS
    */
   static readonly CLOSE = 'close' as const;
 
-  /** @internal
+  /**
    * @param chunks - Handle for chunks collection
    * @param files - Handle for files collection
    * @param readPreference - The read preference to use
    * @param filter - The filter to use to find the file document
+   * @internal
    */
   constructor(
     chunks: Collection<GridFSChunk>,
@@ -176,24 +182,22 @@ export class GridFSBucketReadStream extends Readable implements NodeJS.ReadableS
    * Marks this stream as aborted (will never push another `data` event)
    * and kills the underlying cursor. Will emit the 'end' event, and then
    * the 'close' event once the cursor is successfully killed.
-   *
-   * @param callback - called when the cursor is successfully closed or an error occurred.
    */
-  abort(callback?: Callback<void>): void {
+  async abort(): Promise<void> {
     this.push(null);
     this.destroyed = true;
     if (this.s.cursor) {
-      this.s.cursor.close(error => {
+      try {
+        await this.s.cursor.close();
+      } finally {
         this.emit(GridFSBucketReadStream.CLOSE);
-        callback && callback(error);
-      });
+      }
     } else {
       if (!this.s.init) {
         // If not initialized, fire close event because we will never
         // get a cursor
         this.emit(GridFSBucketReadStream.CLOSE);
       }
-      callback && callback();
     }
   }
 }
@@ -209,7 +213,10 @@ function doRead(stream: GridFSBucketReadStream): void {
   if (!stream.s.cursor) return;
   if (!stream.s.file) return;
 
-  stream.s.cursor.next((error, doc) => {
+  const handleReadResult = ({
+    error,
+    doc
+  }: { error: Error; doc: null } | { error: null; doc: any }) => {
     if (stream.destroyed) {
       return;
     }
@@ -220,18 +227,14 @@ function doRead(stream: GridFSBucketReadStream): void {
     if (!doc) {
       stream.push(null);
 
-      process.nextTick(() => {
-        if (!stream.s.cursor) return;
-        stream.s.cursor.close(error => {
-          if (error) {
-            stream.emit(GridFSBucketReadStream.ERROR, error);
-            return;
-          }
-
+      stream.s.cursor?.close().then(
+        () => {
           stream.emit(GridFSBucketReadStream.CLOSE);
-        });
-      });
-
+        },
+        error => {
+          stream.emit(GridFSBucketReadStream.ERROR, error);
+        }
+      );
       return;
     }
 
@@ -304,7 +307,12 @@ function doRead(stream: GridFSBucketReadStream): void {
 
     stream.push(buf);
     return;
-  });
+  };
+
+  stream.s.cursor.next().then(
+    doc => handleReadResult({ error: null, doc }),
+    error => handleReadResult({ error, doc: null })
+  );
 }
 
 function init(stream: GridFSBucketReadStream): void {
@@ -319,7 +327,10 @@ function init(stream: GridFSBucketReadStream): void {
     findOneOptions.skip = stream.s.options.skip;
   }
 
-  stream.s.files.findOne(stream.s.filter, findOneOptions, (error, doc) => {
+  const handleReadResult = ({
+    error,
+    doc
+  }: { error: Error; doc: null } | { error: null; doc: any }) => {
     if (error) {
       return stream.emit(GridFSBucketReadStream.ERROR, error);
     }
@@ -384,7 +395,12 @@ function init(stream: GridFSBucketReadStream): void {
 
     stream.emit(GridFSBucketReadStream.FILE, doc);
     return;
-  });
+  };
+
+  stream.s.files.findOne(stream.s.filter, findOneOptions).then(
+    doc => handleReadResult({ error: null, doc }),
+    error => handleReadResult({ error, doc: null })
+  );
 }
 
 function waitForFile(stream: GridFSBucketReadStream, callback: Callback): void {

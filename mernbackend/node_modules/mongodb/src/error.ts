@@ -58,7 +58,8 @@ export const MONGODB_ERROR_CODES = Object.freeze({
   IllegalOperation: 20,
   MaxTimeMSExpired: 50,
   UnknownReplWriteConcern: 79,
-  UnsatisfiableWriteConcern: 100
+  UnsatisfiableWriteConcern: 100,
+  Reauthenticate: 391
 } as const);
 
 // From spec@https://github.com/mongodb/specifications/blob/f93d78191f3db2898a59013a7ed5650352ef6da8/source/change-streams/change-streams.rst#resumable-error
@@ -89,11 +90,14 @@ export const MongoErrorLabel = Object.freeze({
   TransientTransactionError: 'TransientTransactionError',
   UnknownTransactionCommitResult: 'UnknownTransactionCommitResult',
   ResumableChangeStreamError: 'ResumableChangeStreamError',
-  HandshakeError: 'HandshakeError'
+  HandshakeError: 'HandshakeError',
+  ResetPool: 'ResetPool',
+  InterruptInUseConnections: 'InterruptInUseConnections',
+  NoWritesPerformed: 'NoWritesPerformed'
 } as const);
 
 /** @public */
-export type MongoErrorLabel = typeof MongoErrorLabel[keyof typeof MongoErrorLabel];
+export type MongoErrorLabel = (typeof MongoErrorLabel)[keyof typeof MongoErrorLabel];
 
 /** @public */
 export interface ErrorDescription extends Document {
@@ -109,7 +113,7 @@ export interface ErrorDescription extends Document {
  * @category Error
  *
  * @privateRemarks
- * CSFLE has a dependency on this error, it uses the constructor with a string argument
+ * mongodb-client-encryption has a dependency on this error, it uses the constructor with a string argument
  */
 export class MongoError extends Error {
   /** @internal */
@@ -121,10 +125,15 @@ export class MongoError extends Error {
    */
   code?: number | string;
   topologyVersion?: TopologyVersion;
+  connectionGeneration?: number;
+  // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+  // @ts-ignore
+  cause?: Error; // depending on the node version, this may or may not exist on the base
 
   constructor(message: string | Error) {
     if (message instanceof Error) {
       super(message.message);
+      this.cause = message;
     } else {
       super(message);
     }
@@ -561,7 +570,7 @@ export class MongoNetworkError extends MongoError {
  * @category Error
  *
  * @privateRemarks
- * CSFLE has a dependency on this error with an instanceof check
+ * mongodb-client-encryption has a dependency on this error with an instanceof check
  */
 export class MongoNetworkTimeoutError extends MongoNetworkError {
   constructor(message: string, options?: MongoNetworkErrorOptions) {

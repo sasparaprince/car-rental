@@ -1,8 +1,10 @@
 import { Readable, Transform } from 'stream';
+import { promisify } from 'util';
 
 import { BSONSerializeOptions, Document, Long, pluckBSONSerializeOptions } from '../bson';
 import {
   AnyError,
+  MongoAPIError,
   MongoCursorExhaustedError,
   MongoCursorInUseError,
   MongoInvalidArgumentError,
@@ -19,7 +21,7 @@ import { ReadConcern, ReadConcernLike } from '../read_concern';
 import { ReadPreference, ReadPreferenceLike } from '../read_preference';
 import type { Server } from '../sdam/server';
 import { ClientSession, maybeClearPinnedConnection } from '../sessions';
-import { Callback, maybePromise, MongoDBNamespace, ns } from '../utils';
+import { Callback, List, MongoDBNamespace, ns } from '../utils';
 
 /** @internal */
 const kId = Symbol('id');
@@ -56,14 +58,6 @@ export const CURSOR_FLAGS = [
   'partial'
 ] as const;
 
-/** @public
- * @deprecated This interface is deprecated */
-export interface CursorCloseOptions {
-  /** Bypass calling killCursors when closing the cursor. */
-  /** @deprecated  the skipKillCursors option is deprecated */
-  skipKillCursors?: boolean;
-}
-
 /** @public */
 export interface CursorStreamOptions {
   /** A transformation method applied to each document emitted by the stream */
@@ -71,7 +65,7 @@ export interface CursorStreamOptions {
 }
 
 /** @public */
-export type CursorFlag = typeof CURSOR_FLAGS[number];
+export type CursorFlag = (typeof CURSOR_FLAGS)[number];
 
 /** @public */
 export interface AbstractCursorOptions extends BSONSerializeOptions {
@@ -141,7 +135,7 @@ export abstract class AbstractCursor<
   CursorEvents extends AbstractCursorEvents = AbstractCursorEvents
 > extends TypedEventEmitter<CursorEvents> {
   /** @internal */
-  [kId]?: Long;
+  [kId]: Long | null;
   /** @internal */
   [kSession]: ClientSession;
   /** @internal */
@@ -149,7 +143,7 @@ export abstract class AbstractCursor<
   /** @internal */
   [kNamespace]: MongoDBNamespace;
   /** @internal */
-  [kDocuments]: TSchema[];
+  [kDocuments]: List<TSchema>;
   /** @internal */
   [kClient]: MongoClient;
   /** @internal */
@@ -179,7 +173,8 @@ export abstract class AbstractCursor<
     }
     this[kClient] = client;
     this[kNamespace] = namespace;
-    this[kDocuments] = [];
+    this[kId] = null;
+    this[kDocuments] = new List();
     this[kInitialized] = false;
     this[kClosed] = false;
     this[kKilled] = false;
@@ -222,7 +217,7 @@ export abstract class AbstractCursor<
   }
 
   get id(): Long | undefined {
-    return this[kId];
+    return this[kId] ?? undefined;
   }
 
   /** @internal */
@@ -280,16 +275,57 @@ export abstract class AbstractCursor<
 
   /** Returns current buffered documents */
   readBufferedDocuments(number?: number): TSchema[] {
-    return this[kDocuments].splice(0, number ?? this[kDocuments].length);
+    const bufferedDocs: TSchema[] = [];
+    const documentsToRead = Math.min(number ?? this[kDocuments].length, this[kDocuments].length);
+
+    for (let count = 0; count < documentsToRead; count++) {
+      const document = this[kDocuments].shift();
+      if (document != null) {
+        bufferedDocs.push(document);
+      }
+    }
+
+    return bufferedDocs;
   }
 
-  [Symbol.asyncIterator](): AsyncIterator<TSchema, void> {
-    return {
-      next: () =>
-        this.next().then(value =>
-          value != null ? { value, done: false } : { value: undefined, done: true }
-        )
-    };
+  async *[Symbol.asyncIterator](): AsyncGenerator<TSchema, void, void> {
+    if (this.closed) {
+      return;
+    }
+
+    try {
+      while (true) {
+        const document = await this.next();
+
+        // Intentional strict null check, because users can map cursors to falsey values.
+        // We allow mapping to all values except for null.
+        // eslint-disable-next-line no-restricted-syntax
+        if (document === null) {
+          if (!this.closed) {
+            const message =
+              'Cursor returned a `null` document, but the cursor is not exhausted.  Mapping documents to `null` is not supported in the cursor transform.';
+
+            await cleanupCursorAsync(this, { needsToEmitClosed: true }).catch(() => null);
+
+            throw new MongoAPIError(message);
+          }
+          break;
+        }
+
+        yield document;
+
+        if (this[kId] === Long.ZERO) {
+          // Cursor exhausted
+          break;
+        }
+      }
+    } finally {
+      // Only close the cursor if it has not already been closed. This finally clause handles
+      // the case when a user would break out of a for await of loop early.
+      if (!this.closed) {
+        await this.close().catch(() => null);
+      }
+    }
   }
 
   stream(options?: CursorStreamOptions): Readable & AsyncIterable<TSchema> {
@@ -316,130 +352,68 @@ export abstract class AbstractCursor<
     return new ReadableCursorStream(this);
   }
 
-  hasNext(): Promise<boolean>;
-  hasNext(callback: Callback<boolean>): void;
-  hasNext(callback?: Callback<boolean>): Promise<boolean> | void {
-    return maybePromise(callback, done => {
-      if (this[kId] === Long.ZERO) {
-        return done(undefined, false);
-      }
+  async hasNext(): Promise<boolean> {
+    if (this[kId] === Long.ZERO) {
+      return false;
+    }
 
-      if (this[kDocuments].length) {
-        return done(undefined, true);
-      }
+    if (this[kDocuments].length !== 0) {
+      return true;
+    }
 
-      next<TSchema>(this, true, (err, doc) => {
-        if (err) return done(err);
+    const doc = await nextAsync<TSchema>(this, true);
 
-        if (doc) {
-          this[kDocuments].unshift(doc);
-          done(undefined, true);
-          return;
-        }
+    if (doc) {
+      this[kDocuments].unshift(doc);
+      return true;
+    }
 
-        done(undefined, false);
-      });
-    });
+    return false;
   }
 
   /** Get the next available document from the cursor, returns null if no more documents are available. */
-  next(): Promise<TSchema | null>;
-  next(callback: Callback<TSchema | null>): void;
-  next(callback?: Callback<TSchema | null>): Promise<TSchema | null> | void;
-  next(callback?: Callback<TSchema | null>): Promise<TSchema | null> | void {
-    return maybePromise(callback, done => {
-      if (this[kId] === Long.ZERO) {
-        return done(new MongoCursorExhaustedError());
-      }
+  async next(): Promise<TSchema | null> {
+    if (this[kId] === Long.ZERO) {
+      throw new MongoCursorExhaustedError();
+    }
 
-      next(this, true, done);
-    });
+    return nextAsync(this, true);
   }
 
   /**
    * Try to get the next available document from the cursor or `null` if an empty batch is returned
    */
-  tryNext(): Promise<TSchema | null>;
-  tryNext(callback: Callback<TSchema | null>): void;
-  tryNext(callback?: Callback<TSchema | null>): Promise<TSchema | null> | void {
-    return maybePromise(callback, done => {
-      if (this[kId] === Long.ZERO) {
-        return done(new MongoCursorExhaustedError());
-      }
+  async tryNext(): Promise<TSchema | null> {
+    if (this[kId] === Long.ZERO) {
+      throw new MongoCursorExhaustedError();
+    }
 
-      next(this, false, done);
-    });
+    return nextAsync(this, false);
   }
 
   /**
    * Iterates over all the documents for this cursor using the iterator, callback pattern.
    *
+   * If the iterator returns `false`, iteration will stop.
+   *
    * @param iterator - The iteration callback.
-   * @param callback - The end callback.
    */
-  forEach(iterator: (doc: TSchema) => boolean | void): Promise<void>;
-  forEach(iterator: (doc: TSchema) => boolean | void, callback: Callback<void>): void;
-  forEach(
-    iterator: (doc: TSchema) => boolean | void,
-    callback?: Callback<void>
-  ): Promise<void> | void {
+  async forEach(iterator: (doc: TSchema) => boolean | void): Promise<void> {
     if (typeof iterator !== 'function') {
       throw new MongoInvalidArgumentError('Argument "iterator" must be a function');
     }
-    return maybePromise(callback, done => {
-      const transform = this[kTransform];
-      const fetchDocs = () => {
-        next<TSchema>(this, true, (err, doc) => {
-          if (err || doc == null) return done(err);
-          let result;
-          // NOTE: no need to transform because `next` will do this automatically
-          try {
-            result = iterator(doc); // TODO(NODE-3283): Improve transform typing
-          } catch (error) {
-            return done(error);
-          }
-
-          if (result === false) return done();
-
-          // these do need to be transformed since they are copying the rest of the batch
-          const internalDocs = this[kDocuments].splice(0, this[kDocuments].length);
-          for (let i = 0; i < internalDocs.length; ++i) {
-            try {
-              result = iterator(
-                (transform ? transform(internalDocs[i]) : internalDocs[i]) as TSchema // TODO(NODE-3283): Improve transform typing
-              );
-            } catch (error) {
-              return done(error);
-            }
-            if (result === false) return done();
-          }
-
-          fetchDocs();
-        });
-      };
-
-      fetchDocs();
-    });
+    for await (const document of this) {
+      const result = iterator(document);
+      if (result === false) {
+        break;
+      }
+    }
   }
 
-  close(): Promise<void>;
-  close(callback: Callback): void;
-  /**
-   * @deprecated options argument is deprecated
-   */
-  close(options: CursorCloseOptions): Promise<void>;
-  /**
-   * @deprecated options argument is deprecated
-   */
-  close(options: CursorCloseOptions, callback: Callback): void;
-  close(options?: CursorCloseOptions | Callback, callback?: Callback): Promise<void> | void {
-    if (typeof options === 'function') (callback = options), (options = {});
-    options = options ?? {};
-
+  async close(): Promise<void> {
     const needsToEmitClosed = !this[kClosed];
     this[kClosed] = true;
-
-    return maybePromise(callback, done => cleanupCursor(this, { needsToEmitClosed }, done));
+    await cleanupCursorAsync(this, { needsToEmitClosed });
   }
 
   /**
@@ -447,41 +421,13 @@ export abstract class AbstractCursor<
    * is enough memory to store the results. Note that the array only contains partial
    * results when this cursor had been previously accessed. In that case,
    * cursor.rewind() can be used to reset the cursor.
-   *
-   * @param callback - The result callback.
    */
-  toArray(): Promise<TSchema[]>;
-  toArray(callback: Callback<TSchema[]>): void;
-  toArray(callback?: Callback<TSchema[]>): Promise<TSchema[]> | void {
-    return maybePromise(callback, done => {
-      const docs: TSchema[] = [];
-      const transform = this[kTransform];
-      const fetchDocs = () => {
-        // NOTE: if we add a `nextBatch` then we should use it here
-        next<TSchema>(this, true, (err, doc) => {
-          if (err) return done(err);
-          if (doc == null) return done(undefined, docs);
-
-          // NOTE: no need to transform because `next` will do this automatically
-          docs.push(doc);
-
-          // these do need to be transformed since they are copying the rest of the batch
-          const internalDocs = (
-            transform
-              ? this[kDocuments].splice(0, this[kDocuments].length).map(transform)
-              : this[kDocuments].splice(0, this[kDocuments].length)
-          ) as TSchema[]; // TODO(NODE-3283): Improve transform typing
-
-          if (internalDocs) {
-            docs.push(...internalDocs);
-          }
-
-          fetchDocs();
-        });
-      };
-
-      fetchDocs();
-    });
+  async toArray(): Promise<TSchema[]> {
+    const array = [];
+    for await (const document of this) {
+      array.push(document);
+    }
+    return array;
   }
 
   /**
@@ -510,6 +456,29 @@ export abstract class AbstractCursor<
    * this function's transform.
    *
    * @remarks
+   *
+   * **Note** Cursors use `null` internally to indicate that there are no more documents in the cursor. Providing a mapping
+   * function that maps values to `null` will result in the cursor closing itself before it has finished iterating
+   * all documents.  This will **not** result in a memory leak, just surprising behavior.  For example:
+   *
+   * ```typescript
+   * const cursor = collection.find({});
+   * cursor.map(() => null);
+   *
+   * const documents = await cursor.toArray();
+   * // documents is always [], regardless of how many documents are in the collection.
+   * ```
+   *
+   * Other falsey values are allowed:
+   *
+   * ```typescript
+   * const cursor = collection.find({});
+   * cursor.map(() => '');
+   *
+   * const documents = await cursor.toArray();
+   * // documents is now an array of empty strings
+   * ```
+   *
    * **Note for Typescript Users:** adding a transform changes the return type of the iteration of this cursor,
    * it **does not** return a new instance of a cursor. This means when calling map,
    * you should always assign the result to a new variable in order to get a correctly typed cursor variable.
@@ -588,7 +557,7 @@ export abstract class AbstractCursor<
   /**
    * Set the batch size for the cursor.
    *
-   * @param value - The number of documents to return per batch. See {@link https://docs.mongodb.com/manual/reference/command/find/|find command documentation}.
+   * @param value - The number of documents to return per batch. See {@link https://www.mongodb.com/docs/manual/reference/command/find/|find command documentation}.
    */
   batchSize(value: number): this {
     assertUninitialized(this);
@@ -614,8 +583,8 @@ export abstract class AbstractCursor<
       return;
     }
 
-    this[kId] = undefined;
-    this[kDocuments] = [];
+    this[kId] = null;
+    this[kDocuments].clear();
     this[kClosed] = false;
     this[kKilled] = false;
     this[kInitialized] = false;
@@ -663,7 +632,7 @@ export abstract class AbstractCursor<
    * a significant refactor.
    */
   [kInit](callback: Callback<TSchema | null>): void {
-    this._initialize(this[kSession], (err, state) => {
+    this._initialize(this[kSession], (error, state) => {
       if (state) {
         const response = state.response;
         this[kServer] = state.server;
@@ -673,13 +642,15 @@ export abstract class AbstractCursor<
           this[kId] =
             typeof response.cursor.id === 'number'
               ? Long.fromNumber(response.cursor.id)
+              : typeof response.cursor.id === 'bigint'
+              ? Long.fromBigInt(response.cursor.id)
               : response.cursor.id;
 
           if (response.cursor.ns) {
             this[kNamespace] = ns(response.cursor.ns);
           }
 
-          this[kDocuments] = response.cursor.firstBatch;
+          this[kDocuments].pushMany(response.cursor.firstBatch);
         }
 
         // When server responses return without a cursor document, we close this cursor
@@ -688,15 +659,19 @@ export abstract class AbstractCursor<
         if (this[kId] == null) {
           this[kId] = Long.ZERO;
           // TODO(NODE-3286): ExecutionResult needs to accept a generic parameter
-          this[kDocuments] = [state.response as TODO_NODE_3286];
+          this[kDocuments].push(state.response as TODO_NODE_3286);
         }
       }
 
       // the cursor is now initialized, even if an error occurred or it is dead
       this[kInitialized] = true;
 
-      if (err || cursorIsDead(this)) {
-        return cleanupCursor(this, { error: err }, () => callback(err, nextDocument(this)));
+      if (error) {
+        return cleanupCursor(this, { error }, () => callback(error, undefined));
+      }
+
+      if (cursorIsDead(this)) {
+        return cleanupCursor(this, undefined, () => callback());
       }
 
       callback();
@@ -704,23 +679,23 @@ export abstract class AbstractCursor<
   }
 }
 
-function nextDocument<T>(cursor: AbstractCursor): T | null {
-  if (cursor[kDocuments] == null || !cursor[kDocuments].length) {
-    return null;
-  }
-
+function nextDocument<T>(cursor: AbstractCursor<T>): T | null {
   const doc = cursor[kDocuments].shift();
-  if (doc) {
-    const transform = cursor[kTransform];
-    if (transform) {
-      return transform(doc) as T;
-    }
 
-    return doc;
+  if (doc && cursor[kTransform]) {
+    return cursor[kTransform](doc) as T;
   }
 
-  return null;
+  return doc;
 }
+
+const nextAsync = promisify(
+  next as <T>(
+    cursor: AbstractCursor<T>,
+    blocking: boolean,
+    callback: (e: Error, r: T | null) => void
+  ) => void
+);
 
 /**
  * @param cursor - the cursor on which to call `next`
@@ -742,18 +717,15 @@ export function next<T>(
     return callback(undefined, null);
   }
 
-  if (cursor[kDocuments] && cursor[kDocuments].length) {
+  if (cursor[kDocuments].length !== 0) {
     callback(undefined, nextDocument<T>(cursor));
     return;
   }
 
   if (cursorId == null) {
     // All cursors must operate within a session, one must be made implicitly if not explicitly provided
-    cursor[kInit]((err, value) => {
+    cursor[kInit](err => {
       if (err) return callback(err);
-      if (value) {
-        return callback(undefined, value);
-      }
       return next(cursor, blocking, callback);
     });
 
@@ -766,19 +738,21 @@ export function next<T>(
 
   // otherwise need to call getMore
   const batchSize = cursor[kOptions].batchSize || 1000;
-  cursor._getMore(batchSize, (err, response) => {
+  cursor._getMore(batchSize, (error, response) => {
     if (response) {
       const cursorId =
         typeof response.cursor.id === 'number'
           ? Long.fromNumber(response.cursor.id)
+          : typeof response.cursor.id === 'bigint'
+          ? Long.fromBigInt(response.cursor.id)
           : response.cursor.id;
 
-      cursor[kDocuments] = response.cursor.nextBatch;
+      cursor[kDocuments].pushMany(response.cursor.nextBatch);
       cursor[kId] = cursorId;
     }
 
-    if (err || cursorIsDead(cursor)) {
-      return cleanupCursor(cursor, { error: err }, () => callback(err, nextDocument<T>(cursor)));
+    if (error || cursorIsDead(cursor)) {
+      return cleanupCursor(cursor, { error }, () => callback(error, nextDocument<T>(cursor)));
     }
 
     if (cursor[kDocuments].length === 0 && blocking === false) {
@@ -793,6 +767,8 @@ function cursorIsDead(cursor: AbstractCursor): boolean {
   const cursorId = cursor[kId];
   return !!cursorId && cursorId.isZero();
 }
+
+const cleanupCursorAsync = promisify(cleanupCursor);
 
 function cleanupCursor(
   cursor: AbstractCursor,
@@ -821,7 +797,10 @@ function cleanupCursor(
 
     if (session) {
       if (session.owner === cursor) {
-        return session.endSession({ error }, callback);
+        session.endSession({ error }).finally(() => {
+          callback();
+        });
+        return;
       }
 
       if (!session.inTransaction()) {
@@ -835,10 +814,11 @@ function cleanupCursor(
   function completeCleanup() {
     if (session) {
       if (session.owner === cursor) {
-        return session.endSession({ error }, () => {
+        session.endSession({ error }).finally(() => {
           cursor.emit(AbstractCursor.CLOSE);
           callback();
         });
+        return;
       }
 
       if (!session.inTransaction()) {
@@ -852,11 +832,16 @@ function cleanupCursor(
 
   cursor[kKilled] = true;
 
-  return executeOperation(
+  if (session.hasEnded) {
+    return completeCleanup();
+  }
+
+  executeOperation(
     cursor[kClient],
-    new KillCursorsOperation(cursorId, cursorNs, server, { session }),
-    completeCleanup
-  );
+    new KillCursorsOperation(cursorId, cursorNs, server, { session })
+  )
+    .catch(() => null)
+    .finally(completeCleanup);
 }
 
 /** @internal */
@@ -888,7 +873,10 @@ class ReadableCursorStream extends Readable {
   }
 
   override _destroy(error: Error | null, callback: (error?: Error | null) => void): void {
-    this._cursor.close(err => process.nextTick(callback, err || error));
+    this._cursor.close().then(
+      () => callback(error),
+      closeError => callback(closeError)
+    );
   }
 
   private _readNext() {
@@ -904,14 +892,22 @@ class ReadableCursorStream extends Readable {
         }
 
         // NOTE: This is also perhaps questionable. The rationale here is that these errors tend
-        //       to be "operation interrupted", where a cursor has been closed but there is an
+        //       to be "operation was interrupted", where a cursor has been closed but there is an
         //       active getMore in-flight. This used to check if the cursor was killed but once
         //       that changed to happen in cleanup legitimate errors would not destroy the
         //       stream. There are change streams test specifically test these cases.
-        if (err.message.match(/interrupted/)) {
+        if (err.message.match(/operation was interrupted/)) {
           return this.push(null);
         }
 
+        // NOTE: The two above checks on the message of the error will cause a null to be pushed
+        //       to the stream, thus closing the stream before the destroy call happens. This means
+        //       that either of those error messages on a change stream will not get a proper
+        //       'error' event to be emitted (the error passed to destroy). Change stream resumability
+        //       relies on that error event to be emitted to create its new cursor and thus was not
+        //       working on 4.4 servers because the error emitted on failover was "interrupted at
+        //       shutdown" while on 5.0+ it is "The server is in quiesce mode and will shut down".
+        //       See NODE-4475.
         return this.destroy(err);
       }
 

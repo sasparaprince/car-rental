@@ -1,5 +1,6 @@
 import type { TcpNetConnectOpts } from 'net';
 import type { ConnectionOptions as TLSConnectionOptions, TLSSocketOptions } from 'tls';
+import { promisify } from 'util';
 
 import { BSONSerializeOptions, Document, resolveBSONOptions } from './bson';
 import { ChangeStream, ChangeStreamDocument, ChangeStreamOptions } from './change_stream';
@@ -8,32 +9,22 @@ import type { AuthMechanism } from './cmap/auth/providers';
 import type { LEGAL_TCP_SOCKET_OPTIONS, LEGAL_TLS_SOCKET_OPTIONS } from './cmap/connect';
 import type { Connection } from './cmap/connection';
 import type { CompressorName } from './cmap/wire_protocol/compression';
-import { parseOptions } from './connection_string';
-import type { MONGO_CLIENT_EVENTS } from './constants';
+import { parseOptions, resolveSRVRecord } from './connection_string';
+import { MONGO_CLIENT_EVENTS } from './constants';
 import { Db, DbOptions } from './db';
 import type { AutoEncrypter, AutoEncryptionOptions } from './deps';
 import type { Encrypter } from './encrypter';
 import { MongoInvalidArgumentError } from './error';
-import type { Logger, LoggerLevel } from './logger';
+import { MongoLogger, MongoLoggerOptions } from './mongo_logger';
 import { TypedEventEmitter } from './mongo_types';
-import { connect } from './operations/connect';
-import { PromiseProvider } from './promise_provider';
 import type { ReadConcern, ReadConcernLevel, ReadConcernLike } from './read_concern';
 import { ReadPreference, ReadPreferenceMode } from './read_preference';
 import type { TagSet } from './sdam/server_description';
 import { readPreferenceServerSelector } from './sdam/server_selection';
 import type { SrvPoller } from './sdam/srv_polling';
-import type { Topology, TopologyEvents } from './sdam/topology';
+import { Topology, TopologyEvents } from './sdam/topology';
 import { ClientSession, ClientSessionOptions, ServerSessionPool } from './sessions';
-import {
-  Callback,
-  ClientMetadata,
-  HostAddress,
-  maybePromise,
-  MongoDBNamespace,
-  ns,
-  resolveOptions
-} from './utils';
+import { ClientMetadata, HostAddress, MongoDBNamespace, ns, resolveOptions } from './utils';
 import type { W, WriteConcern, WriteConcernSettings } from './write_concern';
 
 /** @public */
@@ -42,7 +33,7 @@ export const ServerApiVersion = Object.freeze({
 } as const);
 
 /** @public */
-export type ServerApiVersion = typeof ServerApiVersion[keyof typeof ServerApiVersion];
+export type ServerApiVersion = (typeof ServerApiVersion)[keyof typeof ServerApiVersion];
 
 /** @public */
 export interface ServerApi {
@@ -74,19 +65,19 @@ export interface PkFactory {
 /** @public */
 export type SupportedTLSConnectionOptions = Pick<
   TLSConnectionOptions,
-  Extract<keyof TLSConnectionOptions, typeof LEGAL_TLS_SOCKET_OPTIONS[number]>
+  Extract<keyof TLSConnectionOptions, (typeof LEGAL_TLS_SOCKET_OPTIONS)[number]>
 >;
 
 /** @public */
 export type SupportedTLSSocketOptions = Pick<
   TLSSocketOptions,
-  Extract<keyof TLSSocketOptions, typeof LEGAL_TLS_SOCKET_OPTIONS[number]>
+  Extract<keyof TLSSocketOptions, (typeof LEGAL_TLS_SOCKET_OPTIONS)[number]>
 >;
 
 /** @public */
 export type SupportedSocketOptions = Pick<
   TcpNetConnectOpts,
-  typeof LEGAL_TCP_SOCKET_OPTIONS[number]
+  (typeof LEGAL_TCP_SOCKET_OPTIONS)[number]
 >;
 
 /** @public */
@@ -97,7 +88,7 @@ export type SupportedNodeConnectionOptions = SupportedTLSConnectionOptions &
 /**
  * Describes all possible URI query options for the mongo client
  * @public
- * @see https://docs.mongodb.com/manual/reference/connection-string
+ * @see https://www.mongodb.com/docs/manual/reference/connection-string
  */
 export interface MongoClientOptions extends BSONSerializeOptions, SupportedNodeConnectionOptions {
   /** Specifies the name of the replica set, if the mongod is a member of a replica set. */
@@ -203,7 +194,7 @@ export interface MongoClientOptions extends BSONSerializeOptions, SupportedNodeC
    * A MongoDB WriteConcern, which describes the level of acknowledgement
    * requested from MongoDB for write operations.
    *
-   * @see https://docs.mongodb.com/manual/reference/write-concern/
+   * @see https://www.mongodb.com/docs/manual/reference/write-concern/
    */
   writeConcern?: WriteConcern | WriteConcernSettings;
   /** Validate mongod server certificate against Certificate Authority */
@@ -226,28 +217,20 @@ export interface MongoClientOptions extends BSONSerializeOptions, SupportedNodeC
   keepAliveInitialDelay?: number;
   /** Force server to assign `_id` values instead of driver */
   forceServerObjectId?: boolean;
-  /** Return document results as raw BSON buffers */
-  raw?: boolean;
   /** A primary key factory function for generation of custom `_id` keys */
   pkFactory?: PkFactory;
-  /** A Promise library class the application wishes to use such as Bluebird, must be ES6 compatible */
-  promiseLibrary?: any;
-  /** The logging level */
-  loggerLevel?: LoggerLevel;
-  /** Custom logger object */
-  logger?: Logger;
   /** Enable command monitoring for this client */
   monitorCommands?: boolean;
   /** Server API version */
   serverApi?: ServerApi | ServerApiVersion;
   /**
-   * Optionally enable client side auto encryption
+   * Optionally enable in-use auto encryption
    *
    * @remarks
    *  Automatic encryption is an enterprise only feature that only applies to operations on a collection. Automatic encryption is not supported for operations on a database or view, and operations that are not bypassed will result in error
    *  (see [libmongocrypt: Auto Encryption Allow-List](https://github.com/mongodb/specifications/blob/master/source/client-side-encryption/client-side-encryption.rst#libmongocrypt-auto-encryption-allow-list)). To bypass automatic encryption for all operations, set bypassAutoEncryption=true in AutoEncryptionOpts.
    *
-   *  Automatic encryption requires the authenticated user to have the [listCollections privilege action](https://docs.mongodb.com/manual/reference/command/listCollections/#dbcmd.listCollections).
+   *  Automatic encryption requires the authenticated user to have the [listCollections privilege action](https://www.mongodb.com/docs/manual/reference/command/listCollections/#dbcmd.listCollections).
    *
    *  If a MongoClient with a limited connection pool size (i.e a non-zero maxPoolSize) is configured with AutoEncryptionOptions, a separate internal MongoClient is created if any of the following are true:
    *  - AutoEncryptionOptions.keyVaultClient is not passed.
@@ -296,12 +279,11 @@ export interface MongoClientPrivate {
   readonly readConcern?: ReadConcern;
   readonly writeConcern?: WriteConcern;
   readonly readPreference: ReadPreference;
-  readonly logger: Logger;
   readonly isMongoClient: true;
 }
 
 /** @public */
-export type MongoClientEvents = Pick<TopologyEvents, typeof MONGO_CLIENT_EVENTS[number]> & {
+export type MongoClientEvents = Pick<TopologyEvents, (typeof MONGO_CLIENT_EVENTS)[number]> & {
   // In previous versions the open event emitted a topology, in an effort to no longer
   // expose internals but continue to expose this useful event API, it now emits a mongoClient
   open(mongoClient: MongoClient): void;
@@ -318,36 +300,15 @@ const kOptions = Symbol('options');
  * The programmatically provided options take precedence over the URI options.
  *
  * @example
- * ```js
- * // Connect using a MongoClient instance
- * const MongoClient = require('mongodb').MongoClient;
- * const test = require('assert');
- * // Connection url
- * const url = 'mongodb://localhost:27017';
- * // Database Name
- * const dbName = 'test';
- * // Connect using MongoClient
- * const mongoClient = new MongoClient(url);
- * mongoClient.connect(function(err, client) {
- *   const db = client.db(dbName);
- *   client.close();
- * });
- * ```
+ * ```ts
+ * import { MongoClient } from 'mongodb';
  *
- * @example
- * ```js
- * // Connect using the MongoClient.connect static method
- * const MongoClient = require('mongodb').MongoClient;
- * const test = require('assert');
- * // Connection url
- * const url = 'mongodb://localhost:27017';
- * // Database Name
- * const dbName = 'test';
- * // Connect using MongoClient
- * MongoClient.connect(url, function(err, client) {
- *   const db = client.db(dbName);
- *   client.close();
- * });
+ * // Enable command monitoring for debugging
+ * const client = new MongoClient('mongodb://localhost:27017', { monitorCommands: true });
+ *
+ * client.on('commandStarted', started => console.log(started));
+ * client.db().collection('pets');
+ * await client.insertOne({ name: 'spot', kind: 'dog' });
  * ```
  */
 export class MongoClient extends TypedEventEmitter<MongoClientEvents> {
@@ -355,6 +316,10 @@ export class MongoClient extends TypedEventEmitter<MongoClientEvents> {
   s: MongoClientPrivate;
   /** @internal */
   topology?: Topology;
+  /** @internal */
+  readonly mongoLogger: MongoLogger;
+  /** @internal */
+  private connectionLock?: Promise<this>;
 
   /**
    * The consolidate, parsed, transformed and merged options.
@@ -366,6 +331,7 @@ export class MongoClient extends TypedEventEmitter<MongoClientEvents> {
     super();
 
     this[kOptions] = parseOptions(url, this, options);
+    this.mongoLogger = new MongoLogger(this[kOptions].mongoLoggerOptions);
 
     // eslint-disable-next-line @typescript-eslint/no-this-alias
     const client = this;
@@ -390,9 +356,6 @@ export class MongoClient extends TypedEventEmitter<MongoClientEvents> {
       },
       get readPreference() {
         return client[kOptions].readPreference;
-      },
-      get logger() {
-        return client[kOptions].logger;
       },
       get isMongoClient(): true {
         return true;
@@ -438,44 +401,87 @@ export class MongoClient extends TypedEventEmitter<MongoClientEvents> {
     return this.s.bsonOptions;
   }
 
-  get logger(): Logger {
-    return this.s.logger;
-  }
-
   /**
    * Connect to MongoDB using a url
    *
    * @see docs.mongodb.org/manual/reference/connection-string/
    */
-  connect(): Promise<this>;
-  connect(callback: Callback<this>): void;
-  connect(callback?: Callback<this>): Promise<this> | void {
-    if (callback && typeof callback !== 'function') {
-      throw new MongoInvalidArgumentError('Method `connect` only accepts a callback');
+  async connect(): Promise<this> {
+    if (this.connectionLock) {
+      return this.connectionLock;
     }
 
-    return maybePromise(callback, cb => {
-      connect(this, this[kOptions], err => {
-        if (err) return cb(err);
-        cb(undefined, this);
-      });
-    });
+    try {
+      this.connectionLock = this._connect();
+      await this.connectionLock;
+    } finally {
+      // release
+      this.connectionLock = undefined;
+    }
+
+    return this;
   }
 
   /**
-   * Close the db and its underlying connections
+   * Create a topology to open the connection, must be locked to avoid topology leaks in concurrency scenario.
+   * Locking is enforced by the connect method.
+   *
+   * @internal
+   */
+  private async _connect(): Promise<this> {
+    if (this.topology && this.topology.isConnected()) {
+      return this;
+    }
+
+    const options = this[kOptions];
+
+    if (typeof options.srvHost === 'string') {
+      const hosts = await resolveSRVRecord(options);
+
+      for (const [index, host] of hosts.entries()) {
+        options.hosts[index] = host;
+      }
+    }
+
+    const topology = new Topology(options.hosts, options);
+    // Events can be emitted before initialization is complete so we have to
+    // save the reference to the topology on the client ASAP if the event handlers need to access it
+    this.topology = topology;
+    topology.client = this;
+
+    topology.once(Topology.OPEN, () => this.emit('open', this));
+
+    for (const event of MONGO_CLIENT_EVENTS) {
+      topology.on(event, (...args: any[]) => this.emit(event, ...(args as any)));
+    }
+
+    const topologyConnect = async () => {
+      try {
+        await promisify(callback => topology.connect(options, callback))();
+      } catch (error) {
+        topology.close({ force: true });
+        throw error;
+      }
+    };
+
+    if (this.autoEncrypter) {
+      const initAutoEncrypter = promisify(callback => this.autoEncrypter?.init(callback));
+      await initAutoEncrypter();
+      await topologyConnect();
+      await options.encrypter.connectInternalClient();
+    } else {
+      await topologyConnect();
+    }
+
+    return this;
+  }
+
+  /**
+   * Close the client and its underlying connections
    *
    * @param force - Force close, emitting no events
-   * @param callback - An optional callback, a Promise will be returned if none is provided
    */
-  close(): Promise<void>;
-  close(callback: Callback<void>): void;
-  close(force: boolean): Promise<void>;
-  close(force: boolean, callback: Callback<void>): void;
-  close(
-    forceOrCallback?: boolean | Callback<void>,
-    callback?: Callback<void>
-  ): Promise<void> | void {
+  async close(force = false): Promise<void> {
     // There's no way to set hasBeenClosed back to false
     Object.defineProperty(this.s, 'hasBeenClosed', {
       value: true,
@@ -484,71 +490,49 @@ export class MongoClient extends TypedEventEmitter<MongoClientEvents> {
       writable: false
     });
 
-    if (typeof forceOrCallback === 'function') {
-      callback = forceOrCallback;
+    const activeSessionEnds = Array.from(this.s.activeSessions, session => session.endSession());
+    this.s.activeSessions.clear();
+
+    await Promise.all(activeSessionEnds);
+
+    if (this.topology == null) {
+      return;
     }
 
-    const force = typeof forceOrCallback === 'boolean' ? forceOrCallback : false;
-
-    return maybePromise(callback, callback => {
-      if (this.topology == null) {
-        // Do not connect just to end sessions
-        return callback();
+    // If we would attempt to select a server and get nothing back we short circuit
+    // to avoid the server selection timeout.
+    const selector = readPreferenceServerSelector(ReadPreference.primaryPreferred);
+    const topologyDescription = this.topology.description;
+    const serverDescriptions = Array.from(topologyDescription.servers.values());
+    const servers = selector(topologyDescription, serverDescriptions);
+    if (servers.length !== 0) {
+      const endSessions = Array.from(this.s.sessionPool.sessions, ({ id }) => id);
+      if (endSessions.length !== 0) {
+        await this.db('admin')
+          .command(
+            { endSessions },
+            { readPreference: ReadPreference.primaryPreferred, noResponse: true }
+          )
+          .catch(() => null); // outcome does not matter
       }
+    }
 
-      const activeSessionEnds = Array.from(this.s.activeSessions, session => session.endSession());
-      this.s.activeSessions.clear();
+    // clear out references to old topology
+    const topology = this.topology;
+    this.topology = undefined;
 
-      Promise.all(activeSessionEnds)
-        .then(() => {
-          if (this.topology == null) {
-            return;
-          }
-          // If we would attempt to select a server and get nothing back we short circuit
-          // to avoid the server selection timeout.
-          const selector = readPreferenceServerSelector(ReadPreference.primaryPreferred);
-          const topologyDescription = this.topology.description;
-          const serverDescriptions = Array.from(topologyDescription.servers.values());
-          const servers = selector(topologyDescription, serverDescriptions);
-          if (servers.length === 0) {
-            return;
-          }
-
-          const endSessions = Array.from(this.s.sessionPool.sessions, ({ id }) => id);
-          if (endSessions.length === 0) return;
-          return this.db('admin')
-            .command(
-              { endSessions },
-              { readPreference: ReadPreference.primaryPreferred, noResponse: true }
-            )
-            .catch(() => null); // outcome does not matter
-        })
-        .then(() => {
-          if (this.topology == null) {
-            return;
-          }
-          // clear out references to old topology
-          const topology = this.topology;
-          this.topology = undefined;
-
-          return new Promise<void>((resolve, reject) => {
-            topology.close({ force }, error => {
-              if (error) return reject(error);
-              const { encrypter } = this[kOptions];
-              if (encrypter) {
-                return encrypter.close(this, force, error => {
-                  if (error) return reject(error);
-                  resolve();
-                });
-              }
-              resolve();
-            });
+    await new Promise<void>((resolve, reject) => {
+      topology.close({ force }, error => {
+        if (error) return reject(error);
+        const { encrypter } = this[kOptions];
+        if (encrypter) {
+          return encrypter.close(this, force, error => {
+            if (error) return reject(error);
+            resolve();
           });
-        })
-        .then(
-          () => callback(),
-          error => callback(error)
-        );
+        }
+        resolve();
+      });
     });
   }
 
@@ -582,38 +566,14 @@ export class MongoClient extends TypedEventEmitter<MongoClientEvents> {
    * @remarks
    * The programmatically provided options take precedence over the URI options.
    *
-   * @see https://docs.mongodb.org/manual/reference/connection-string/
+   * @see https://www.mongodb.com/docs/manual/reference/connection-string/
    */
-  static connect(url: string): Promise<MongoClient>;
-  static connect(url: string, callback: Callback<MongoClient>): void;
-  static connect(url: string, options: MongoClientOptions): Promise<MongoClient>;
-  static connect(url: string, options: MongoClientOptions, callback: Callback<MongoClient>): void;
-  static connect(
-    url: string,
-    options?: MongoClientOptions | Callback<MongoClient>,
-    callback?: Callback<MongoClient>
-  ): Promise<MongoClient> | void {
-    if (typeof options === 'function') (callback = options), (options = {});
-    options = options ?? {};
-
-    try {
-      // Create client
-      const mongoClient = new MongoClient(url, options);
-      // Execute the connect method
-      if (callback) {
-        return mongoClient.connect(callback);
-      } else {
-        return mongoClient.connect();
-      }
-    } catch (error) {
-      if (callback) return callback(error);
-      else return PromiseProvider.get().reject(error);
-    }
+  static async connect(url: string, options?: MongoClientOptions): Promise<MongoClient> {
+    const client = new this(url, options);
+    return client.connect();
   }
 
   /** Starts a new session on the server */
-  startSession(): ClientSession;
-  startSession(options: ClientSessionOptions): ClientSession;
   startSession(options?: ClientSessionOptions): ClientSession {
     const session = new ClientSession(
       this,
@@ -637,10 +597,10 @@ export class MongoClient extends TypedEventEmitter<MongoClientEvents> {
    * @param options - Optional settings for the command
    * @param callback - An callback to execute with an implicitly created session
    */
-  withSession(callback: WithSessionCallback): Promise<void>;
-  withSession(options: ClientSessionOptions, callback: WithSessionCallback): Promise<void>;
-  withSession(
-    optionsOrOperation?: ClientSessionOptions | WithSessionCallback,
+  async withSession(callback: WithSessionCallback): Promise<void>;
+  async withSession(options: ClientSessionOptions, callback: WithSessionCallback): Promise<void>;
+  async withSession(
+    optionsOrOperation: ClientSessionOptions | WithSessionCallback,
     callback?: WithSessionCallback
   ): Promise<void> {
     const options = {
@@ -658,16 +618,16 @@ export class MongoClient extends TypedEventEmitter<MongoClientEvents> {
     }
 
     const session = this.startSession(options);
-    const Promise = PromiseProvider.get();
 
-    return Promise.resolve()
-      .then(() => withSessionCallback(session))
-      .then(() => {
-        // Do not return the result of callback
-      })
-      .finally(() => {
-        session.endSession().catch(() => null);
-      });
+    try {
+      await withSessionCallback(session);
+    } finally {
+      try {
+        await session.endSession();
+      } catch {
+        // We are not concerned with errors from endSession()
+      }
+    }
   }
 
   /**
@@ -676,11 +636,11 @@ export class MongoClient extends TypedEventEmitter<MongoClientEvents> {
    * changes to system collections, as well as the local, admin, and config databases.
    *
    * @remarks
-   * watch() accepts two generic arguments for distinct usecases:
+   * watch() accepts two generic arguments for distinct use cases:
    * - The first is to provide the schema that may be defined for all the data within the current cluster
    * - The second is to override the shape of the change stream document entirely, if it is not provided the type will default to ChangeStreamDocument of the first argument
    *
-   * @param pipeline - An array of {@link https://docs.mongodb.com/manual/reference/operator/aggregation-pipeline/|aggregation pipeline stages} through which to pass change stream documents. This allows for filtering (using $match) and manipulating the change stream documents.
+   * @param pipeline - An array of {@link https://www.mongodb.com/docs/manual/reference/operator/aggregation-pipeline/|aggregation pipeline stages} through which to pass change stream documents. This allows for filtering (using $match) and manipulating the change stream documents.
    * @param options - Optional settings for the command
    * @typeParam TSchema - Type of the data being detected by the change stream
    * @typeParam TChange - Type of the whole change stream document emitted
@@ -696,11 +656,6 @@ export class MongoClient extends TypedEventEmitter<MongoClientEvents> {
     }
 
     return new ChangeStream<TSchema, TChange>(this, pipeline, resolveOptions(this, options));
-  }
-
-  /** Return the mongo client logger */
-  getLogger(): Logger {
-    return this.s.logger;
   }
 }
 
@@ -722,7 +677,6 @@ export interface MongoOptions
         | 'keepAlive'
         | 'keepAliveInitialDelay'
         | 'localThresholdMS'
-        | 'logger'
         | 'maxConnecting'
         | 'maxIdleTimeMS'
         | 'maxPoolSize'
@@ -730,7 +684,6 @@ export interface MongoOptions
         | 'monitorCommands'
         | 'noDelay'
         | 'pkFactory'
-        | 'promiseLibrary'
         | 'raw'
         | 'replicaSet'
         | 'retryReads'
@@ -747,6 +700,7 @@ export interface MongoOptions
       >
     >,
     SupportedNodeConnectionOptions {
+  appName?: string;
   hosts: HostAddress[];
   srvHost?: string;
   credentials?: MongoCredentials;
@@ -794,4 +748,7 @@ export interface MongoOptions
 
   /** @internal */
   [featureFlag: symbol]: any;
+
+  /** @internal */
+  mongoLoggerOptions: MongoLoggerOptions;
 }

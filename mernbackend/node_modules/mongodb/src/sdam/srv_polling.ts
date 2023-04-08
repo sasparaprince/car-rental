@@ -2,7 +2,6 @@ import * as dns from 'dns';
 import { clearTimeout, setTimeout } from 'timers';
 
 import { MongoRuntimeError } from '../error';
-import { Logger, LoggerOptions } from '../logger';
 import { TypedEventEmitter } from '../mongo_types';
 import { HostAddress } from '../utils';
 
@@ -37,7 +36,7 @@ export class SrvPollingEvent {
 }
 
 /** @internal */
-export interface SrvPollerOptions extends LoggerOptions {
+export interface SrvPollerOptions {
   srvServiceName: string;
   srvMaxHosts: number;
   srvHost: string;
@@ -54,7 +53,6 @@ export class SrvPoller extends TypedEventEmitter<SrvPollerEvents> {
   srvHost: string;
   rescanSrvIntervalMS: number;
   heartbeatFrequencyMS: number;
-  logger: Logger;
   haMode: boolean;
   generation: number;
   srvMaxHosts: number;
@@ -76,7 +74,6 @@ export class SrvPoller extends TypedEventEmitter<SrvPollerEvents> {
     this.srvServiceName = options.srvServiceName ?? 'mongodb';
     this.rescanSrvIntervalMS = 60000;
     this.heartbeatFrequencyMS = options.heartbeatFrequencyMS ?? 10000;
-    this.logger = new Logger('srvPoller', options);
 
     this.haMode = false;
     this.generation = 0;
@@ -106,12 +103,15 @@ export class SrvPoller extends TypedEventEmitter<SrvPollerEvents> {
     }
   }
 
+  // TODO(NODE-4994): implement new logging logic for SrvPoller failures
   schedule(): void {
     if (this._timeout) {
       clearTimeout(this._timeout);
     }
 
-    this._timeout = setTimeout(() => this._poll(), this.intervalMS);
+    this._timeout = setTimeout(() => {
+      this._poll().catch(() => null);
+    }, this.intervalMS);
   }
 
   success(srvRecords: dns.SrvRecord[]): void {
@@ -120,46 +120,38 @@ export class SrvPoller extends TypedEventEmitter<SrvPollerEvents> {
     this.emit(SrvPoller.SRV_RECORD_DISCOVERY, new SrvPollingEvent(srvRecords));
   }
 
-  failure(message: string, obj?: NodeJS.ErrnoException): void {
-    this.logger.warn(message, obj);
+  failure(): void {
     this.haMode = true;
     this.schedule();
   }
 
-  parentDomainMismatch(srvRecord: dns.SrvRecord): void {
-    this.logger.warn(
-      `parent domain mismatch on SRV record (${srvRecord.name}:${srvRecord.port})`,
-      srvRecord
-    );
-  }
-
-  _poll(): void {
+  async _poll(): Promise<void> {
     const generation = this.generation;
-    dns.resolveSrv(this.srvAddress, (err, srvRecords) => {
-      if (generation !== this.generation) {
-        return;
-      }
+    let srvRecords;
 
-      if (err) {
-        this.failure('DNS error', err);
-        return;
-      }
+    try {
+      srvRecords = await dns.promises.resolveSrv(this.srvAddress);
+    } catch (dnsError) {
+      this.failure();
+      return;
+    }
 
-      const finalAddresses: dns.SrvRecord[] = [];
-      for (const record of srvRecords) {
-        if (matchesParentDomain(record.name, this.srvHost)) {
-          finalAddresses.push(record);
-        } else {
-          this.parentDomainMismatch(record);
-        }
-      }
+    if (generation !== this.generation) {
+      return;
+    }
 
-      if (!finalAddresses.length) {
-        this.failure('No valid addresses found at host');
-        return;
+    const finalAddresses: dns.SrvRecord[] = [];
+    for (const record of srvRecords) {
+      if (matchesParentDomain(record.name, this.srvHost)) {
+        finalAddresses.push(record);
       }
+    }
 
-      this.success(finalAddresses);
-    });
+    if (!finalAddresses.length) {
+      this.failure();
+      return;
+    }
+
+    this.success(finalAddresses);
   }
 }
