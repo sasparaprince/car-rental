@@ -25,6 +25,7 @@ route.get('/api/users', controller.find);
 route.post('/api/users/:id',upload.single('image'), controller.update);
 route.delete('/api/users/:id', controller.delete);
 route.get('/car/:postId',controller.findCarById);
+route.post('/order', upload.single('avatar') ,controller.createorder);
 // route.get('/showcaradmin',controller.showcar)
 
 module.exports = route

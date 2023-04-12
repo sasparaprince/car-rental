@@ -13,6 +13,8 @@
     box-sizing: border-box;
 }
 
+
+
 a {
     text-decoration: none;
     font-family: 'PT Sans', sans-serif;
@@ -21,6 +23,7 @@ a {
 .container{
     max-width: 1024px;
     margin: auto;
+    margin-right: 100px;
 }
 
 .nav-brand{
@@ -87,6 +90,14 @@ a {
     background-clip: text;
     -webkit-text-fill-color: transparent;
 }
+#add_user{
+margin-top: 50px;
+margin-left: 100px;
+}
+/* .container{
+    margin-top: 50px;
+margin-left: 100px;
+} */
 
 #header nav{
     background-color: #06d6a0;

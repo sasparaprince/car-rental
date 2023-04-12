@@ -1,4 +1,6 @@
+const { log } = require('console');
 var Userdb = require('../models/model');
+var orderDb = require('../models/order')
 
 // create and save new user
 exports.create = (req,res)=>{
@@ -136,3 +138,37 @@ exports.findCarById = (req,res) => {
       });   
 }
 
+
+exports.createorder = (req,res)=>{
+    // validate request
+    if(!req.body){
+        res.status(400).send({ message : "Content can not be emtpy!"});
+        return;
+    }
+
+    // new user
+    const order = new orderDb({
+        Pickup : req.body.Pickup,
+        Dropoff : req.body.Dropoff,
+        PickupDate : req.body.PickupDate,
+        DropoffDate : req.body.DropoffDate
+
+        // status : req.body.status
+    })
+
+    // save user in the database
+    order
+        .save(order)
+        .then(data => {
+            //res.send(data)
+            console.log(data);
+            res.redirect('/');
+        })
+        .catch(err =>{
+            console.log(err)
+            res.status(500).send({
+                message : err.message || "Some error occurred while creating a create operation"
+            });
+        });
+
+}

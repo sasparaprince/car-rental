@@ -23,7 +23,7 @@
             <a href="/addcar" class="btnadmin">Add Car</a>
             <a href="/showcaradmin" class="btnadmin">Show Car</a>
     
-            <a href="/order" class="btnadmin">Order</a>
+            <a href="#" class="btnadmin">Order</a>
             <a href="#" class="btnadmin">Customer</a>
     
           </div>
@@ -67,11 +67,11 @@
                     <thead class="thead-dark">
                         <tr>
                             <th>ID</th>
-                            <th>Name</th>
-                            <th>price</th>
-                            <th>description</th>
-                            <th>fuelType</th>
-                            <th>Action</th>
+                            <th>Pickup-location</th>
+                            <th>Dropoff-location</th>
+                            <th>Pickup Date</th>
+                            <th>Dropoff Date</th>
+                            <th>Confirm</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -81,28 +81,28 @@
                                     <%= i + 1 %>
                                 </td>
                                 <td>
-                                    <%= car[i].name %>
+                                    <%= car[i].Pickup %>
                                 </td>
                                 <td>
-                                    <%= car[i].price %>
+                                    <%= car[i].Dropoff %>
                                 </td>
                                 <td>
-                                    <%= car[i].description.substring(0,15)%>
+                                    <%= car[i].PickupDate%>
                                 </td>
                                 <td>
-                                    <%= car[i].fuelType %>
+                                    <%= car[i].DropoffDate %>
                                 </td>
-
                                 <td>
-                                    <a href="/update-car/<%= car[i]._id%>" class="btn border-shadow update">
-                                        <span class="text-gradient"><i class="fas fa-pencil-alt"></i></span>
+                                    <a href="/order" class="btn border-shadow update">
+                                        <span class="text-gradient"><i class="fa-solid fa-check"></i></span>
                                     </a>
-                                    <a class="btn border-shadow delete" data-id=<%=car[i]._id%> >
+                                    <a class="btn border-shadow delete" href="/order">
                                         <span class="text-gradient"><i class="fas fa-times"></i></span>
                                     </a>
                                 </td>
                             </tr>
                             <% } %>
+                   
                     </tbody>
                 </table>
             </form>
@@ -115,50 +115,8 @@
     integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg=="
     crossorigin="anonymous"></script>
 
-<script>
-    if (window.location.pathname == "/showcaradmin") {
-        $ondelete = $(".table tbody td a.delete");
-        $ondelete.click(function () {
-            var id = $(this).attr("data-id")
-
-            var request = {
-                "url": `http://localhost:3000/api/users/${id}`,
-                "method": "DELETE"
-            }
-
-            if (confirm("Do you really want to delete this record?")) {
-                $.ajax(request).done(function (response) {
-                    alert("Data Deleted Successfully!");
-                    location.reload();
-                })
-            }
-
-        })
-    }
-</script>
-
-<script>
 
 
 
-// document.getElementById ("checkAllTopicCheckBoxes").addEventListener ("click", exportToExcel2, true);
-// import { MongoClient } from 'mongodb';
-//     function exportToExcel2() {
-//         console.log('hello');
-//         MongoClient.connect('mongodb://127.0.0.1:27017/Car-Rental', function (err, db) {
-//             if (err) throw err;
-//             var collection = db.collection('cardbs');
-//             collection.find().toArray(function (err, data) {
-//                 if (err) throw err;
-//                 var workbook = XLSX.utils.book_new();
-//                 var sheet = XLSX.utils.json_to_sheet(data);
-//                 XLSX.utils.book_append_sheet(workbook, sheet, 'Sheet1');
-//                 XLSX.writeFile(workbook, 'data.xlsx');
-//                 db.close();
-//             });
-//         });
-//     }
-</script>
-<!-- <script src="js/export.js"></script> -->
 
 </html>

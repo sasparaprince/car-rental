@@ -6,68 +6,49 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/admin.css">
 </head>
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=PT+Sans+Caption&family=Tilt+Neon&family=Varela+Round&display=swap');
 
-    .btnadmin {
-        font-size: 23px;
-        text-decoration: none;
-        color: black;
-        font-family: 'Poppins', sans-serif;
-    }
-
-    .btnadmin:hover {
-        color: #000000;
-        font-weight: bold;
-    }
-
-    .div-btn {
-        border: 2px solid black;
-        width: 115px;
-        margin: 23px;
-        text-align: center;
-        background-color: #EEF1FF;
-        position: relative;
-        left: 615px;
-        border-radius: 7px;
-    }
-
-
-    .div-btn:hover {
-        background-color: #b5e5ff;
-    }
-
-    h1 {
-        background-color: rgb(222, 240, 255);
-        margin: auto;
-        width: 50%;
-        border: 3px solid #000;
-        padding: 10px;
-        text-align: center;
-        font-family: 'PT Sans Caption', sans-serif;
-        font-family: 'Tilt Neon', cursive;
-        font-family: 'Varela Round', sans-serif;
-    }
-</style>
 
 <body>
+<nav>
+    <div class="sidenav">
+        <a href="#" class="logo"><img src="img/jeep.png" alt=""></a>
+        <div class="bx bx-menu" id="menu-icon"></div>
+        <a href="/addcar" class="btnadmin">Add Car</a>
+        <a href="/showcaradmin" class="btnadmin">Show Car</a>
 
+        <a href="/order" class="btnadmin">Order</a>
+        <a href="#" class="btnadmin">Customer</a>
+
+      </div>
+    </nav>
+<div class="main-admin">
     <div class="admin">
         <h1>Admin Dashboard </h1>
     </div>
-
+</div>
+<!-- 
     <div class="div-btn">
         <a href="/addcar" class="btnadmin">add car</a>
     </div>
 
     <div class="div-btn">
         <a href="/showcaradmin" class="btnadmin">show car</a>
-    </div>
+    </div> -->
 
 
 
 </body>
+<script>
+    function openNav() {
+      document.getElementById("mySidenav").style.width = "250px";
+    }
+    
+    function closeNav() {
+      document.getElementById("mySidenav").style.width = "0";
+    }
+    </script>
 
 </html>

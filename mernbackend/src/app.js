@@ -20,6 +20,7 @@ const connectDB = require('./server/db/conn');
 var Userdb = require('./server/models/model');
 const multer  = require('multer');
 var XLSX = require('xlsx');
+var orderDb = require('./server/models/order')
 const MongoClient = require('mongodb').MongoClient;
 // const xlsx = require('xlsx');
 // const fs = require('fs');
@@ -65,7 +66,16 @@ app.get("/showcaradmin", (req, res) => {
     });
 });
 
+app.get("/order", (req, res) => {
+    // res.render("index")
 
+    orderDb.find({}, function (err, car) {
+        res.render("order", {
+        
+            car: car
+        });
+    });
+});
 
 app.get("/register", (req, res) => {
     res.render("register");
@@ -84,6 +94,10 @@ app.get("/admin", (req, res) => {
 })
 app.get("/addcar", (req, res) => {
     res.render("add_car");
+})
+
+app.get("/order", (req, res) => {
+    res.render("order");
 })
 app.get("/update-car/:id", (req, res) => {
 
@@ -306,6 +320,9 @@ app.get("/car/:postId", function (req, res) {
 //            });
 //        });
 //    });
+
+
+
 
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$

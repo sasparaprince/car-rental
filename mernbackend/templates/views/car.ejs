@@ -89,26 +89,24 @@
         <!-- <div class="col-md-6">
               
             </div> -->
-        <form class="booking-form">
+        <form action="/order" method="POST" class="booking-form">
             <div class="form-group">
                 <label for="pickup-location">Pickup Location</label>
-                <input type="text" class="form-control" id="pickup-location">
+                <input type="text" name="Pickup" class="form-control" id="pickup-location">
             </div>
             <div class="form-group">
                 <label for="dropoff-location">Dropoff Location</label>
-                <input type="text" class="form-control" id="dropoff-location">
+                <input type="text" name="Dropoff" class="form-control" id="dropoff-location">
             </div>
             <div class="form-group">
                 <label for="pickup-date">Pickup Date</label>
-                <input type="date" class="form-control" id="pickup-date">
+                <input type="date" name="PickupDate" class="form-control" id="pickup-date">
             </div>
             <div class="form-group">
                 <label for="dropoff-date">Dropoff Date</label>
-                <input type="date" class="form-control" id="dropoff-date">
+                <input type="date" name="DropoffDate" class="form-control" id="dropoff-date">
             </div>
             <button type="submit" class="btn btn-primary">Book Now</button>
-
-
         </form>
     </div>
 
