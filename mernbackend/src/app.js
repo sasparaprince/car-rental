@@ -82,8 +82,21 @@ app.get("/register", (req, res) => {
 
 })
 
+
+
+app.get("/orderLogin", (req, res) => {
+    res.render("oreder_login");
+
+})
+
 app.get("/login", (req, res) => {
     res.render("login");
+
+})
+
+
+app.get("/profile", (req, res) => {
+    res.render("profile");
 
 })
 app.get("/car", (req, res) => {
@@ -264,10 +277,17 @@ app.post("/login", async (req, res) => {
     try {
         const email = req.body.email;
         const password = req.body.password;
-
         const useremail = await Register.findOne({ email: email });
         if (useremail.password === password) {
-            res.status(201).render("userlogin", { name: useremail.firstname });
+            axios.get('http://localhost:3000/api/users')
+            .then(function (response) {
+                res.render('userlogin', { users: response.data, name: useremail.firstname });
+            })
+            .catch(err => {
+                console.log(err);
+                res.send(err);
+            })
+            // res.status(201).render("userlogin", { name: useremail.firstname });
         }
         else {
             res.send("password are not matching")
