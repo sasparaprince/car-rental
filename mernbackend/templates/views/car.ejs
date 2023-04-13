@@ -106,9 +106,44 @@
                 <label for="dropoff-date">Dropoff Date</label>
                 <input type="date" name="DropoffDate" class="form-control" id="dropoff-date">
             </div>
+            <label for="ratePerDay">Rate per day:</label>
+	<input type="number" value="<%= price %>" id="ratePerDay" disabled="disabled" name="ratePerDay" min="0" step="0.01">
+	<br><br>
+	<p>Invoice amount per day: <span id="invoiceAmountPerDay">0.00</span></p>
+	<p>Total: <span id="total">0.00</span></p>
             <button type="submit" class="btn btn-primary">Book Now</button>
         </form>
     </div>
+
+    <script>
+		const startDateInput = document.getElementById("pickup-date");
+		const endDateInput = document.getElementById("dropoff-date");
+		const ratePerDayInput = document.getElementById("ratePerDay");
+		const invoiceAmountPerDayOutput = document.getElementById("invoiceAmountPerDay");
+		const totalOutput = document.getElementById("total");
+
+		startDateInput.addEventListener("input", calculate);
+		endDateInput.addEventListener("input", calculate);
+		ratePerDayInput.addEventListener("input", calculate);
+
+		function calculate() {
+			const startDate = new Date(startDateInput.value);
+			const endDate = new Date(endDateInput.value);
+			const ratePerDay = parseFloat(ratePerDayInput.value);
+
+			if (startDate && endDate && ratePerDay) {
+				const days = Math.floor((endDate - startDate) / (24 * 60 * 60 * 1000)) + 1;
+
+				if (days > 0) {
+					const invoiceAmountPerDay = days * ratePerDay;
+					const total = invoiceAmountPerDay + (invoiceAmountPerDay * 0.1); // Add 10% tax
+
+					invoiceAmountPerDayOutput.textContent = invoiceAmountPerDay.toFixed(2);
+					totalOutput.textContent = total.toFixed(2);
+				}
+			}
+		}
+	</script>
 
     <script src="https://unpkg.com/scrollreveal"></script>
     <script src="js/carpage.js">
