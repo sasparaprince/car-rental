@@ -14,6 +14,9 @@ var schema = new mongoose.Schema({
     DropoffDate: {
         type: String
     },
+    total: {
+        type: String
+    }
 
 })
 

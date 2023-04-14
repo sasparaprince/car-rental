@@ -49,7 +49,7 @@
 
 
             <!-- form handling -->
-            <form action="/exportdata" method="POST">
+            <form action="/exportorder" method="POST">
 
 
                 <div class="box-nav d-flex justify-between">
@@ -71,6 +71,7 @@
                             <th>Dropoff-location</th>
                             <th>Pickup Date</th>
                             <th>Dropoff Date</th>
+                            <th>total</th>
                             <th>Confirm</th>
                         </tr>
                     </thead>
@@ -91,6 +92,9 @@
                                 </td>
                                 <td>
                                     <%= car[i].DropoffDate %>
+                                </td>
+                                <td>
+                                    <%= car[i].total %>
                                 </td>
                                 <td>
                                     <a href="/order" class="btn border-shadow update">

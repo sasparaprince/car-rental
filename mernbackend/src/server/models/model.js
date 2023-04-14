@@ -17,7 +17,7 @@ var schema = new mongoose.Schema({
             },
             image: {
                 type: String
-            }
+            },
         })
 
 const Userdb = mongoose.model('carDB', schema);

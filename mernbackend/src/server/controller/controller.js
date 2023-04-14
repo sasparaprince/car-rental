@@ -151,7 +151,8 @@ exports.createorder = (req,res)=>{
         Pickup : req.body.Pickup,
         Dropoff : req.body.Dropoff,
         PickupDate : req.body.PickupDate,
-        DropoffDate : req.body.DropoffDate
+        DropoffDate : req.body.DropoffDate,
+        total : req.body.total
 
         // status : req.body.status
     })
@@ -162,7 +163,7 @@ exports.createorder = (req,res)=>{
         .then(data => {
             //res.send(data)
             console.log(data);
-            res.redirect('/');
+            res.redirect('/userlogin');
         })
         .catch(err =>{
             console.log(err)
@@ -171,6 +172,4 @@ exports.createorder = (req,res)=>{
             });
         });
 }
-
-
 

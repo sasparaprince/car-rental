@@ -23,8 +23,6 @@ exports.show_car = (req, res) => {
         .catch(err =>{
             res.send(err);
         })
-
-    
 }
 
 

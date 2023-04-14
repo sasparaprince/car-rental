@@ -55,12 +55,13 @@ app.get("/", (req, res) => {
     });
 });
 
+
+
 app.get("/showcaradmin", (req, res) => {
     // res.render("index")
 
     Userdb.find({}, function (err, user) {
         res.render("showcar", {
-        
             car: user
         });
     });
@@ -71,7 +72,6 @@ app.get("/order", (req, res) => {
 
     orderDb.find({}, function (err, car) {
         res.render("order", {
-        
             car: car
         });
     });
@@ -298,9 +298,16 @@ app.post("/login", async (req, res) => {
     catch (error) {
         res.status(400).send("invalid Email")
     }
-
-
 })
+
+
+app.get("/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) throw err;
+    res.redirect("/");
+  });
+});
+
 
 app.get("/car/:postId", function (req, res) {
 
@@ -324,22 +331,13 @@ app.get("/car/:postId", function (req, res) {
     });
 });
 
+app.get("/userlogin/logout", function(req,res){
+    req.logout(function(err) {
+        if (err) { return next(err); }
+        res.redirect('/');
+      });
+});
 
-
-//     app.get('/car/:_id', function(req,res){
-
-//         var query = { 'question' : req.params.id };
-//         console.log(query);
-//         console.log('query');
-
-//        db.collection('english', function(err, collection) {
-
-//            collection.findOne(query, function(err, item) {
-//                console.log(err);
-//                res.send(item);
-//            });
-//        });
-//    });
 
 
 
@@ -384,6 +382,37 @@ app.post('/exportdata',(req,res)=>{
 
 
 
+app.post('/exportorder',(req,res)=>{
+    var wb = XLSX.utils.book_new(); //new workbook
+    orderDb.find((err,data)=>{
+        if(err){
+            console.log(err)
+        }else{
+            var temp = JSON.stringify(data);
+            temp = JSON.parse(temp);
+            var ws = XLSX.utils.json_to_sheet(temp);
+            var down = __dirname+'/upload/order.xlsx';
+           XLSX.utils.book_append_sheet(wb,ws,"sheet1");
+           XLSX.writeFile(wb,down);
+           res.download(down);
+        }
+    });
+});
+
+
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+app.get('/profile/:userId', async (req, res) => {
+    const userId = req.params.userId;
+    try {
+      const user = await User.findOne({ _id: userId });
+      res.render('profile', { user });
+    } catch (err) {
+      console.error(err);
+      res.status(500).send('Internal Server Error');
+    }
+  });
+
+//$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 
 
