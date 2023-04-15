@@ -98,6 +98,7 @@
               
             </div> -->
         <form action="/order" method="POST" class="booking-form">
+            <input type="hidden" value="<%= name %>"  name="carName" >
             <div class="form-group">
                 <label for="pickup-location">Pickup Location</label>
                 <input type="text" name="Pickup" class="form-control" id="pickup-location">

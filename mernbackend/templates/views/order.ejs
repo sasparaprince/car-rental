@@ -67,6 +67,7 @@
                     <thead class="thead-dark">
                         <tr>
                             <th>ID</th>
+                            <th>Car Name</th>
                             <th>Pickup-location</th>
                             <th>Dropoff-location</th>
                             <th>Pickup Date</th>
@@ -80,6 +81,9 @@
                             <tr>
                                 <td>
                                     <%= i + 1 %>
+                                </td>
+                                <td>
+                                    <%= car[i].carName %>
                                 </td>
                                 <td>
                                     <%= car[i].Pickup %>

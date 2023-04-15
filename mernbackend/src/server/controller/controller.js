@@ -148,6 +148,7 @@ exports.createorder = (req,res)=>{
 
     // new user
     const order = new orderDb({
+        carName : req.body.carName,
         Pickup : req.body.Pickup,
         Dropoff : req.body.Dropoff,
         PickupDate : req.body.PickupDate,

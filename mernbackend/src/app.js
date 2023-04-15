@@ -315,7 +315,7 @@ app.get("/car/:postId", function (req, res) {
 
     Userdb.findOne({ _id: requestedPostId }, function (err, user) {
         if (user) {
-            console.log(user);
+            // console.log(user);
             res.render("car", {
                 //   title: post.title,
                 //   content: post.content
@@ -379,8 +379,6 @@ app.post('/exportdata',(req,res)=>{
         }
     });
 });
-
-
 
 app.post('/exportorder',(req,res)=>{
     var wb = XLSX.utils.book_new(); //new workbook
