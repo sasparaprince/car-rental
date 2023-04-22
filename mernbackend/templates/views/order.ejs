@@ -13,6 +13,10 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css"
         integrity="sha512-SzlrxWUlpfuzQ+pcUCosxcglQRNAq/DZjVsC0lE40xsADsfeQoEypE+enwcOiGjk/bSuGGKHEyjSoQ1zVisanQ=="
         crossorigin="anonymous" referrerpolicy="no-referrer" />
+        
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"
+integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg=="
+crossorigin="anonymous"></script>
 </head>
 
 <body>
@@ -104,7 +108,7 @@
                                     <a href="/order" class="btn border-shadow update">
                                         <span class="text-gradient"><i class="fa-solid fa-check"></i></span>
                                     </a>
-                                    <a class="btn border-shadow delete" href="/order">
+                                    <a class="btn border-shadow delete" data-id=<%=car[i]._id%> >
                                         <span class="text-gradient"><i class="fas fa-times"></i></span>
                                     </a>
                                 </td>
@@ -119,9 +123,29 @@
 </div>
 
 </body>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js"
-    integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg=="
-    crossorigin="anonymous"></script>
+
+
+
+<script>
+    if (window.location.pathname == "/order") {
+        $ondelete = $(".table tbody td a.delete");
+        $ondelete.click(function () {
+            var id = $(this).attr("data-id")
+            var request = {
+                "url": `http://localhost:3000/api/users/order/${id}`,
+                "method": "DELETE"
+            }
+            if (1>0) {
+                $.ajax(request).done(function (response) {
+                    // alert("Data Deleted Successfully!");
+                    location.reload();
+                })
+            }
+        })
+    }
+</script>
+
+
 
 
 

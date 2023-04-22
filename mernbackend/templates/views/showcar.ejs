@@ -9,9 +9,7 @@
     <link rel="stylesheet" href="css/addcar.css">
     <link rel="stylesheet" href="css/style.css">
     <link rel="stylesheet" href="css/admin.css">
-    <link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-	<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-	<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    
     <link rel="stylesheet" type="text/css" href="css/addcar.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.3.0/css/all.min.css"
         integrity="sha512-SzlrxWUlpfuzQ+pcUCosxcglQRNAq/DZjVsC0lE40xsADsfeQoEypE+enwcOiGjk/bSuGGKHEyjSoQ1zVisanQ=="
@@ -53,8 +51,6 @@
 
             <!-- form handling -->
             <form action="/exportdata" method="POST">
-
-
                 <div class="box-nav d-flex justify-between">
                     <button class="border-shadowtwo" type="submit">
                         <span class="text-gradient">
@@ -123,19 +119,16 @@
         $ondelete = $(".table tbody td a.delete");
         $ondelete.click(function () {
             var id = $(this).attr("data-id")
-
             var request = {
                 "url": `http://localhost:3000/api/users/${id}`,
                 "method": "DELETE"
             }
-
             if (confirm("Do you really want to delete this record?")) {
                 $.ajax(request).done(function (response) {
                     alert("Data Deleted Successfully!");
                     location.reload();
                 })
             }
-
         })
     }
 </script>

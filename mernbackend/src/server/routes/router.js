@@ -22,9 +22,12 @@ route.get('/update-user', services.update_user)
 // API
 route.post('/api/users', upload.single('avatar') ,controller.create);
 route.get('/api/users', controller.find);
+route.get('/api/users/profile', controller.findProfile);
 route.post('/api/users/:id',upload.single('image'), controller.update);
 route.delete('/api/users/:id', controller.delete);
+route.delete('/api/users/order/:id', controller.deleteorder);
 route.get('/car/:postId',controller.findCarById);
-route.post('/order', upload.single('avatar') ,controller.createorder);
+route.post('/order',controller.createorder);
+// route.post('/order',controller.createorderuser);
 
 module.exports = route

@@ -18,14 +18,14 @@ const axios = require('axios');
 const port = process.env.PORT || 3000;
 const connectDB = require('./server/db/conn');
 var Userdb = require('./server/models/model');
-const multer  = require('multer');
+const multer = require('multer');
 var XLSX = require('xlsx');
 var orderDb = require('./server/models/order')
 const MongoClient = require('mongodb').MongoClient;
 // const xlsx = require('xlsx');
 // const fs = require('fs');
 
-
+const ObjectId = require('mongoose').Types.ObjectId
 
 const static_path = path.join(__dirname, "../public");
 const templates_path = path.join(__dirname, "../templates/views");
@@ -69,13 +69,20 @@ app.get("/showcaradmin", (req, res) => {
 
 app.get("/order", (req, res) => {
     // res.render("index")
-
     orderDb.find({}, function (err, car) {
-        res.render("order", {
-            car: car
-        });
+        res.render("order", { car: car },);
     });
 });
+
+app.get('/order', async (req, res) => {
+    // Fetch all bookings and populate the associated user data
+    const bookings = await orderDb.find().populate('createdBy');
+  
+    // Render the bookings page with the booking data
+    res.render('bookings', { bookings: bookings });
+  });
+
+
 
 app.get("/register", (req, res) => {
     res.render("register");
@@ -95,45 +102,78 @@ app.get("/login", (req, res) => {
 })
 
 
-app.get("/profile", (req, res) => {
-    res.render("profile");
+// app.get('/profile', (req, res) => {
+//     const userId = req.user._id;
 
-})
+//     Booking.find({ user: userId })
+//       .populate('car') // populate the 'car' field with the full car object
+//       .exec((err, bookings) => {
+//         if (err) {
+//           console.log(err);
+//           res.status(500).send('Error fetching booking data');
+//         } else {
+//           res.render('profile', { bookings: bookings });
+//         }
+//       });
+//   });
+
+
 app.get("/car", (req, res) => {
-    res.render("car");
+    // const userId = req.query.userId; // Retrieve the user ID from the request
+    const db = client.db(dbName);
+    const collection = db.collection(users);
+    const userId = req.session.userId || req.query.userId;
+    // const bookings =  orderDb.find().populate('createdBy');
+
+    collection.findOne({ _id: ObjectId(userId) }, (err, user) => {
+
+        if (err) throw err;
+        res.render('car', { user: user },);
+        console.log(bookings);
+    });
 })
 app.get("/admin", (req, res) => {
     res.render("admin");
 })
+
 app.get("/addcar", (req, res) => {
     res.render("add_car");
 })
 
-app.get("/order", (req, res) => {
-    res.render("order");
-})
+
+
+// app.get('/profile', (req, res) => {
+//     orderDb.find({ user: req.user._id })
+//       .populate('car')
+//       .then(bookings => {
+//         res.render('profile', { bookings });
+//       })
+//       .catch(err => console.log(err));
+//   });
+
+
 app.get("/update-car/:id", (req, res) => {
 
-const requestedPostId = req.params.id;
-    
-    Userdb.findOne({_id: requestedPostId}, function(err, user){
+    const requestedPostId = req.params.id;
+
+    Userdb.findOne({ _id: requestedPostId }, function (err, user) {
         if (user) {
             console.log(user);
             res.render("update_car", {
                 //   title: post.title,
                 //   content: post.content
-                name : user.name,
-                price : user.price,
-                seats : user.seats,
-                description : user.description,
+                name: user.name,
+                price: user.price,
+                seats: user.seats,
+                description: user.description,
                 fuelType: user.fuelType,
                 image: user.image,
                 id: user?._id
-                });
-        }else{
+            });
+        } else {
             console.log(err);
-        }   
-      });   
+        }
+    });
     // res.render("update_car");
 })
 app.get("/showcaradmin", (req, res) => {
@@ -162,8 +202,12 @@ const userSchema = new mongoose.Schema({
     password: String,
     googleId: String,
     secret: String,
-    displayName: String
+    displayName: String,  
+    bookings: [{ type: mongoose.Schema.Types.ObjectId, ref: 'orderDb' }]
+
+
 })
+
 
 userSchema.plugin(passportLocalMongoose);
 userSchema.plugin(findOrCreate);
@@ -198,7 +242,7 @@ passport.use(new GoogleStrategy({
     //   }
     function (accessToken, refreshToken, profile, cb) {
 
-        User.findOrCreate({ username: profile.id, googleId: profile.id, displayName: profile.displayName }, function (err, user) {
+        User.findOrCreate({ username: profile.id, googleId: profile.id, displayName: profile.displayName, email: profile.emails[0].value }, function (err, user) {
             return cb(err, user);
         });
     }
@@ -207,7 +251,7 @@ passport.use(new GoogleStrategy({
 app.get("/auth/google",
     passport.authenticate('google', {
         successRedirect: '/', scope:
-            ['https://www.googleapis.com/auth/userinfo.profile']
+            ['https://www.googleapis.com/auth/userinfo.profile', 'email']
     })
 );
 
@@ -237,7 +281,48 @@ app.get("/userlogin", function (req, res) {
         }
     });
 });
+//<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>....
 
+app.get("/profile", function (req, res) {
+    User.find({ "secret": { $ne: null } }, function (err, foundUser) {
+        if (err) {
+            console.log(err);
+        } else {
+            if (foundUser) {
+                console.log(foundUser)
+
+                axios.get('http://localhost:3000/api/users')
+
+                    .then(function (response) {
+                        res.render('profile', { users: response.data, name: req.user.displayName, email: req.user.email });
+                    })
+                    .catch(err => {
+                        res.send(err);
+                    })
+            }
+        }
+    });
+});
+// app.get("/profile", function (req, res) {
+//     Register.find({ "secret": { $ne: null } }, function (err, foundUser) {
+//         if (err) {
+//             console.log(err);
+//         } else {
+//             if (foundUser) {
+//                 console.log(foundUser)
+
+//                 axios.get('http://localhost:3000/api/users')
+
+//                     .then(function (response) {
+//                         res.render('profile', { users: response.data, name: req.user.displayName, email: req.user.email });
+//                     })
+//                     .catch(err => {
+//                         res.send(err);
+//                     })
+//             }
+//         }
+//     });
+// });
 
 
 //********************************************************************************************************** */
@@ -280,13 +365,13 @@ app.post("/login", async (req, res) => {
         const useremail = await Register.findOne({ email: email });
         if (useremail.password === password) {
             axios.get('http://localhost:3000/api/users')
-            .then(function (response) {
-                res.render('userlogin', { users: response.data, name: useremail.firstname });
-            })
-            .catch(err => {
-                console.log(err);
-                res.send(err);
-            })
+                .then(function (response) {
+                    res.render('userlogin', { users: response.data, name: useremail.firstname });
+                })
+                .catch(err => {
+                    console.log(err);
+                    res.send(err);
+                })
             // res.status(201).render("userlogin", { name: useremail.firstname });
         }
         else {
@@ -302,10 +387,10 @@ app.post("/login", async (req, res) => {
 
 
 app.get("/logout", (req, res) => {
-  req.session.destroy((err) => {
-    if (err) throw err;
-    res.redirect("/");
-  });
+    req.session.destroy((err) => {
+        if (err) throw err;
+        res.redirect("/");
+    });
 });
 
 
@@ -331,11 +416,11 @@ app.get("/car/:postId", function (req, res) {
     });
 });
 
-app.get("/userlogin/logout", function(req,res){
-    req.logout(function(err) {
+app.get("/userlogin/logout", function (req, res) {
+    req.logout(function (err) {
         if (err) { return next(err); }
         res.redirect('/');
-      });
+    });
 });
 
 
@@ -346,15 +431,15 @@ app.get("/userlogin/logout", function(req,res){
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 
 const storage = multer.diskStorage({
-    destination: function(req, file, cb) {
-      cb(null, 'public/uploads/');
+    destination: function (req, file, cb) {
+        cb(null, 'public/uploads/');
     },
-    filename: function(req, file, cb) {
-      cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
+    filename: function (req, file, cb) {
+        cb(null, file.fieldname + '-' + Date.now() + path.extname(file.originalname));
     }
-  });
-  
-  const upload = multer({ storage: storage });
+});
+
+const upload = multer({ storage: storage });
 
 module.exports = upload
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
@@ -363,52 +448,52 @@ module.exports = upload
 
 
 
-app.post('/exportdata',(req,res)=>{
+app.post('/exportdata', (req, res) => {
     var wb = XLSX.utils.book_new(); //new workbook
-    Userdb.find((err,data)=>{
-        if(err){
+    Userdb.find((err, data) => {
+        if (err) {
             console.log(err)
-        }else{
+        } else {
             var temp = JSON.stringify(data);
             temp = JSON.parse(temp);
             var ws = XLSX.utils.json_to_sheet(temp);
-            var down = __dirname+'/upload/output.xlsx';
-           XLSX.utils.book_append_sheet(wb,ws,"sheet1");
-           XLSX.writeFile(wb,down);
-           res.download(down);
+            var down = __dirname + '/upload/output.xlsx';
+            XLSX.utils.book_append_sheet(wb, ws, "sheet1");
+            XLSX.writeFile(wb, down);
+            res.download(down);
         }
     });
 });
 
-app.post('/exportorder',(req,res)=>{
+app.post('/exportorder', (req, res) => {
     var wb = XLSX.utils.book_new(); //new workbook
-    orderDb.find((err,data)=>{
-        if(err){
+    orderDb.find((err, data) => {
+        if (err) {
             console.log(err)
-        }else{
+        } else {
             var temp = JSON.stringify(data);
             temp = JSON.parse(temp);
             var ws = XLSX.utils.json_to_sheet(temp);
-            var down = __dirname+'/upload/order.xlsx';
-           XLSX.utils.book_append_sheet(wb,ws,"sheet1");
-           XLSX.writeFile(wb,down);
-           res.download(down);
+            var down = __dirname + '/upload/order.xlsx';
+            XLSX.utils.book_append_sheet(wb, ws, "sheet1");
+            XLSX.writeFile(wb, down);
+            res.download(down);
         }
     });
 });
 
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
-app.get('/profile/:userId', async (req, res) => {
-    const userId = req.params.userId;
-    try {
-      const user = await User.findOne({ _id: userId });
-      res.render('profile', { user });
-    } catch (err) {
-      console.error(err);
-      res.status(500).send('Internal Server Error');
-    }
-  });
+// app.get('/profile/:userId', async (req, res) => {
+//     const userId = req.params.userId;
+//     try {
+//       const user = await User.findOne({ _id: userId });
+//       res.render('profile', { user });
+//     } catch (err) {
+//       console.error(err);
+//       res.status(500).send('Internal Server Error');
+//     }
+//   });
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 

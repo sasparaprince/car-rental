@@ -1,6 +1,9 @@
 const mongoose = require('mongoose');
+var Userdb = require('../models/model');
+var User = require('../../app')
 
 var schema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'UserDb' },
     carName: {
         type: String
     },
@@ -19,7 +22,8 @@ var schema = new mongoose.Schema({
     },
     total: {
         type: String
-    }
+    },
+    createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 
 })
 
