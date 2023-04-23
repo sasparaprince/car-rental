@@ -89,6 +89,24 @@ app.get("/register", (req, res) => {
 
 })
 
+app.get("/users", (req, res) => {
+    res.render("users");
+
+})
+
+app.get("/registeruser", (req, res) => {
+    Register.find({}, function (err, user) {
+        res.render("registeruser", { user: user },);
+    });
+
+})
+app.get("/googleuser", (req, res) => {
+    User.find({}, function (err, user) {
+        res.render("googleuser", { user: user },);
+    });
+
+})
+
 
 
 app.get("/orderLogin", (req, res) => {
@@ -213,7 +231,7 @@ userSchema.plugin(passportLocalMongoose);
 userSchema.plugin(findOrCreate);
 
 const User = mongoose.model("User", userSchema);
-
+module.exports = User;
 
 passport.use(User.createStrategy());
 
@@ -281,30 +299,39 @@ app.get("/userlogin", function (req, res) {
         }
     });
 });
+
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>....
 
-app.get("/profile", function (req, res) {
-    User.find({ "secret": { $ne: null } }, function (err, foundUser) {
-        if (err) {
-            console.log(err);
-        } else {
-            if (foundUser) {
-                console.log(foundUser)
 
-                axios.get('http://localhost:3000/api/users')
-
-                    .then(function (response) {
-                        res.render('profile', { users: response.data, name: req.user.displayName, email: req.user.email });
-                    })
-                    .catch(err => {
-                        res.send(err);
-                    })
-            }
-        }
-    });
-});
+// &**************&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&*************************************************
+// if (Register) {
+//     app.get("/profile", function (req, res) {
+//         Register.find(function (err, foundUser) {
+//             if (err) {
+//                 console.log(err);
+//             } else {
+//                 if (foundUser) {
+//                     // console.log(foundUser);
+    
+//                     axios.get('http://localhost:3000/api/users')
+//                         .then(function (response) {
+//                             // Retrieve user's name from session and pass it as a variable to EJS file
+//                             const name = req.session.name || '';
+//                             const email = req.session.email || '';
+//                             console.log(name);
+//                             console.log(email);
+//                             res.render('profile', {users: response.data, name: name, email:email});
+//                         })
+//                         .catch(err => {
+//                             res.send(err);
+//                         })
+//                 }
+//             }
+//         });
+//     });
+// }else{
 // app.get("/profile", function (req, res) {
-//     Register.find({ "secret": { $ne: null } }, function (err, foundUser) {
+//     User.find({ "secret": { $ne: null } }, function (err, foundUser) {
 //         if (err) {
 //             console.log(err);
 //         } else {
@@ -323,6 +350,8 @@ app.get("/profile", function (req, res) {
 //         }
 //     });
 // });
+// }
+  
 
 
 //********************************************************************************************************** */
@@ -358,32 +387,59 @@ app.post("/register", async (req, res) => {
 })
 // logoin check
 
-app.post("/login", async (req, res) => {
-    try {
-        const email = req.body.email;
-        const password = req.body.password;
-        const useremail = await Register.findOne({ email: email });
-        if (useremail.password === password) {
-            axios.get('http://localhost:3000/api/users')
-                .then(function (response) {
-                    res.render('userlogin', { users: response.data, name: useremail.firstname });
-                })
-                .catch(err => {
-                    console.log(err);
-                    res.send(err);
-                })
-            // res.status(201).render("userlogin", { name: useremail.firstname });
-        }
-        else {
-            res.send("password are not matching")
-        }
+app.post("/login", function (req, res) {
+    const email = req.body.email;
+    const password = req.body.password;
 
-    }
-    // console.log(`${email}and password is ${password}`);
-    catch (error) {
-        res.status(400).send("invalid Email")
-    }
-})
+    Register.findOne({email: email}, function (err, foundUser) {
+        if (err) {
+            console.log(err);
+        } else {
+            if (foundUser) {
+                if (foundUser.password === password) {
+                    // Store user's name in session
+                    req.session.name = foundUser.firstname;
+                    req.session.email = foundUser.email;
+                    console.log(req.session.name);
+                    res.redirect("/userlogins");
+                }
+            }
+        }
+    });
+});
+
+
+app.get("/userlogins", function (req, res) {
+    Register.find(function (err, foundUser) {
+        if (err) {
+            console.log(err);
+        } else {
+            if (foundUser) {
+                // console.log(foundUser);
+
+                axios.get('http://localhost:3000/api/users')
+                    .then(function (response) {
+                        // Retrieve user's name from session and pass it as a variable to EJS file
+                        const name = req.session.name || '';
+                        const email = req.session.email || '';
+                        console.log(name);
+                        console.log(email);
+                        res.render('userlogin', {users: response.data, name: name, email:email});
+                    })
+                    .catch(err => {
+                        res.send(err);
+                    })
+            }
+        }
+    });
+});
+
+
+
+
+
+
+
 
 
 app.get("/logout", (req, res) => {
@@ -496,7 +552,25 @@ app.post('/exportorder', (req, res) => {
 //   });
 
 //$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+app.delete('/api/users/googleuser/:id',function(req, res){
+    const id = req.params.id;
 
+    User.findByIdAndDelete(id)
+        .then(data => {
+            if(!data){
+                res.status(404).send({ message : `Cannot Delete with id ${id}. Maybe id is wrong`})
+            }else{
+                res.send({
+                    message : "User was deleted successfully!"
+                })
+            }
+        })
+        .catch(err =>{
+            res.status(500).send({
+                message: "Could not delete User with id=" + id
+            });
+        });
+});
 
 
 app.listen(port, () => {

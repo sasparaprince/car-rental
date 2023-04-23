@@ -84,6 +84,7 @@ hr {
 
 }
 
+
 .navbar a::after {
     content: '';
     width: 0%;
@@ -605,3 +606,8 @@ font-size: 17px;
 
 }
 
+.img-fluid {
+    max-width: 100%;
+    height: auto;
+    margin-top: 20px;
+}

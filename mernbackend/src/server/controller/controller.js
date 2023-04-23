@@ -7,6 +7,7 @@ var User = require('../../app');
 
 
 
+
 // create and save new user
 exports.create = (req,res)=>{
     // validate request
@@ -172,6 +173,45 @@ exports.deleteorder = (req, res)=>{
         });
 }
 
+exports.deleteuser = (req, res)=>{
+    const id = req.params.id;
+
+    Register.findByIdAndDelete(id)
+        .then(data => {
+            if(!data){
+                res.status(404).send({ message : `Cannot Delete with id ${id}. Maybe id is wrong`})
+            }else{
+                res.send({
+                    message : "User was deleted successfully!"
+                })
+            }
+        })
+        .catch(err =>{
+            res.status(500).send({
+                message: "Could not delete User with id=" + id
+            });
+        });
+}
+// exports.deletegoogleuser = (req, res)=>{
+//     const id = req.params.id;
+
+//     User.findByIdAndDelete(id)
+//         .then(data => {
+//             if(!data){
+//                 res.status(404).send({ message : `Cannot Delete with id ${id}. Maybe id is wrong`})
+//             }else{
+//                 res.send({
+//                     message : "User was deleted successfully!"
+//                 })
+//             }
+//         })
+//         .catch(err =>{
+//             res.status(500).send({
+//                 message: "Could not delete User with id=" + id
+//             });
+//         });
+// }
+
 
 exports.findCarById = (req,res) => {
   
@@ -224,8 +264,8 @@ exports.createorder = (req,res)=>{
         .save(order)
         .then(data => {
             //res.send(data)
-            console.log(data);
-            res.redirect('/userlogin');
+            // console.log(data);
+            res.status(200).redirect('/userlogin');
         })
         .catch(err =>{
             console.log(err)
