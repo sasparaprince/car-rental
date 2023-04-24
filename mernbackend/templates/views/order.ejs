@@ -18,6 +18,15 @@
 integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg=="
 crossorigin="anonymous"></script>
 </head>
+<style>
+       .confirmButton {
+      background-color: #ffffff;
+      color: #000000;
+      padding: 10px 20px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+</style>
 
 <body>
     <nav>
@@ -100,9 +109,10 @@ crossorigin="anonymous"></script>
                                     <%= car[i].total %>
                                 </td>
                                 <td>
-                                    <a href="/order" class="btn border-shadow update">
+                                    <!-- <a href="/order" id="confirmButton" >
                                         <span class="text-gradient"><i class="fa-solid fa-check"></i></span>
-                                    </a>
+                                    </a> -->
+                                    <a class="confirmButton" data-confirm-color="green"><i class="fa-solid fa-check"></i></a>
                                     <a class="btn border-shadow delete" data-id=<%=car[i]._id%> >
                                         <span class="text-gradient"><i class="fas fa-times"></i></span>
                                     </a>
@@ -140,7 +150,29 @@ crossorigin="anonymous"></script>
     }
 </script>
 
+<script>
+      $(document).ready(function() {
+      var confirmButtons = $('.confirmButton');
 
+    //   Set the initial color of the buttons from local storage
+    //   confirmButtons.each(function() {
+    //     var confirmColor = localStorage.getItem($(this).attr('data-confirm-color'));
+    //     if (confirmColor) {
+    //       $(this).css('background-color', confirmColor);
+    //     }
+    //   });
+
+      // Listen for click events on the buttons
+      confirmButtons.click(function() {
+        alert('Confirm order');
+        // alert('comming soon');
+        var confirmColor = $(this).attr('data-confirm-color');
+        $(this).css('background-color', confirmColor);
+        localStorage.setItem(confirmColor, confirmColor);
+      });
+    });
+  </script>
+</script>
 
 
 

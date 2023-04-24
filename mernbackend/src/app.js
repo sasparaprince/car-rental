@@ -37,11 +37,7 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static(static_path));
 app.set("view engine", "ejs");
 app.set("views", templates_path);
-// ejs.registerPartials(partials_path);
 
-
-// mongodb connection
-// connectDB();
 
 app.use('/', require('./server/routes/router'))
 app.get("/", (req, res) => {
@@ -305,54 +301,53 @@ app.get("/userlogin", function (req, res) {
 
 // &**************&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&*************************************************
 // if (Register) {
-//     app.get("/profile", function (req, res) {
-//         Register.find(function (err, foundUser) {
-//             if (err) {
-//                 console.log(err);
-//             } else {
-//                 if (foundUser) {
-//                     // console.log(foundUser);
+    // app.get("/profile", function (req, res) {
+    //     Register.find(function (err, foundUser) {
+    //         if (err) {
+    //             console.log(err);
+    //         } else {
+    //             if (foundUser) {
+    //                 // console.log(foundUser);
     
-//                     axios.get('http://localhost:3000/api/users')
-//                         .then(function (response) {
-//                             // Retrieve user's name from session and pass it as a variable to EJS file
-//                             const name = req.session.name || '';
-//                             const email = req.session.email || '';
-//                             console.log(name);
-//                             console.log(email);
-//                             res.render('profile', {users: response.data, name: name, email:email});
-//                         })
-//                         .catch(err => {
-//                             res.send(err);
-//                         })
-//                 }
-//             }
-//         });
-//     });
-// }else{
-// app.get("/profile", function (req, res) {
-//     User.find({ "secret": { $ne: null } }, function (err, foundUser) {
-//         if (err) {
-//             console.log(err);
-//         } else {
-//             if (foundUser) {
-//                 console.log(foundUser)
+    //                 axios.get('http://localhost:3000/api/users')
+    //                     .then(function (response) {
+    //                         // Retrieve user's name from session and pass it as a variable to EJS file
+    //                         const name = req.session.name || '';
+    //                         const email = req.session.email || '';
+    //                         console.log(name);
+    //                         console.log(email);
+    //                         res.render('profile', {users: response.data, name: name, email:email});
+    //                     })
+    //                     .catch(err => {
+    //                         res.send(err);
+    //                     })
+    //             }
+    //         }
+    //     });
+    // });
 
-//                 axios.get('http://localhost:3000/api/users')
+app.get("/profile", function (req, res) {
+    User.find({ "secret": { $ne: null } }, function (err, foundUser) {
+        if (err) {
+            console.log(err);
+        } else {
+            if (foundUser) {
+                console.log(foundUser)
 
-//                     .then(function (response) {
-//                         res.render('profile', { users: response.data, name: req.user.displayName, email: req.user.email });
-//                     })
-//                     .catch(err => {
-//                         res.send(err);
-//                     })
-//             }
-//         }
-//     });
-// });
-// }
+                axios.get('http://localhost:3000/api/users')
+
+                    .then(function (response) {
+                        res.render('profiles', { users: response.data, name: req.user.displayName, email: req.user.email });
+                    })
+                    .catch(err => {
+                        res.send(err);
+                    })
+            }
+        }
+    });
+});
+
   
-
 
 //********************************************************************************************************** */
 
