@@ -257,12 +257,12 @@ exports.createorder = (req,res)=>{
         DropoffDate : req.body.DropoffDate,
         total : req.body.total
 
-        // status : req.body.status
+        // status : req.body.statuss
     })
     // save user in the database
     order
         .save(order)
-        .then(data => {
+        .then(data => { 
             //res.send(data)
             // console.log(data);
             res.status(200).redirect('/userlogin');

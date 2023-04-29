@@ -68,6 +68,7 @@ hr {
 
 .navbar {
     display: flex;
+row-gap: 2px;
 
 }
 

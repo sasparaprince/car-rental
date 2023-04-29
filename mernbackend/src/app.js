@@ -277,6 +277,32 @@ app.get("/auth/google/secrets",
     });
 
 app.get("/userlogin", function (req, res) {
+
+    if(req.session.isManual || false) {
+
+    Register.find(function (err, foundUser) {
+        if (err) {
+            console.log(err);
+        } else {
+            if (foundUser) {
+                // console.log(foundUser);
+
+                axios.get('http://localhost:3000/api/users')
+                    .then(function (response) {
+                        // Retrieve user's name from session and pass it as a variable to EJS file
+                        const name = req.session.name || '';
+                        const email = req.session.email || '';
+                        console.log(name);
+                        console.log(email);
+                       return res.render('userlogin', {users: response.data, name: name, email:email});
+                    })
+                    .catch(err => {
+                       return  res.send(err);
+                    })
+            }
+        }
+    });
+    }else {
     User.find({ "secret": { $ne: null } }, function (err, foundUser) {
         if (err) {
             console.log(err);
@@ -286,14 +312,14 @@ app.get("/userlogin", function (req, res) {
 
                 axios.get('http://localhost:3000/api/users')
                     .then(function (response) {
-                        res.render('userlogin', { users: response.data, name: req.user.displayName });
+                      return  res.render('userlogin', { users: response.data, name: req.user.displayName });
                     })
                     .catch(err => {
-                        res.send(err);
+                      return  res.send(err);
                     })
             }
         }
-    });
+    });}
 });
 
 //<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>....
@@ -326,29 +352,51 @@ app.get("/userlogin", function (req, res) {
     //     });
     // });
 
-app.get("/profile", function (req, res) {
-    User.find({ "secret": { $ne: null } }, function (err, foundUser) {
-        if (err) {
-            console.log(err);
-        } else {
-            if (foundUser) {
-                console.log(foundUser)
+    app.get("/profile", function (req, res) {
 
-                axios.get('http://localhost:3000/api/users')
-
-                    .then(function (response) {
-                        res.render('profiles', { users: response.data, name: req.user.displayName, email: req.user.email });
-                    })
-                    .catch(err => {
-                        res.send(err);
-                    })
+        if(req.session.isManual || false) {
+    
+        Register.find(function (err, foundUser) {
+            if (err) {
+                console.log(err);
+            } else {
+                if (foundUser) {
+                    // console.log(foundUser);
+    
+                    axios.get('http://localhost:3000/api/users')
+                        .then(function (response) {
+                            // Retrieve user's name from session and pass it as a variable to EJS file
+                            const name = req.session.name || '';
+                            const email = req.session.email || '';
+                            console.log(name);
+                            console.log(email);
+                           return res.render('profile', {users: response.data, name: name, email:email});
+                        })
+                        .catch(err => {
+                           return  res.send(err);
+                        })
+                }
             }
-        }
+        });
+        }else {
+        User.find({ "secret": { $ne: null } }, function (err, foundUser) {
+            if (err) {
+                console.log(err);
+            } else {
+                if (foundUser) {
+                    console.log(foundUser)
+    
+                    axios.get('http://localhost:3000/api/users')
+                        .then(function (response) {
+                          return  res.render('profile', { users: response.data, name: req.user.displayName, email: req.user.email });
+                        })
+                        .catch(err => {
+                          return  res.send(err);
+                        })
+                }
+            }
+        });}
     });
-});
-
-  
-
 //********************************************************************************************************** */
 
 
@@ -395,6 +443,7 @@ app.post("/login", function (req, res) {
                     // Store user's name in session
                     req.session.name = foundUser.firstname;
                     req.session.email = foundUser.email;
+                    req.session.isManual = true;
                     console.log(req.session.name);
                     res.redirect("/userlogins");
                 }
@@ -405,6 +454,7 @@ app.post("/login", function (req, res) {
 
 
 app.get("/userlogins", function (req, res) {
+   
     Register.find(function (err, foundUser) {
         if (err) {
             console.log(err);
